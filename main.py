@@ -1485,7 +1485,7 @@ CURRENCY_META = {
 }
 
 PAYMENT_DEFAULT_CURRENCY = os.getenv(
-    "PAYMENT_DEFAULT_CURRENCY", "USD"
+    "PAYMENT_DEFAULT_CURRENCY", "KES"
 ).strip().upper()
 
 # USD is the only enabled currency by default. Add others only after
@@ -1497,7 +1497,7 @@ PAYMENT_DEFAULT_CURRENCY = os.getenv(
 PAYSTACK_ENABLED_CURRENCIES = {
     currency.strip().upper()
     for currency in os.getenv(
-        "PAYSTACK_ENABLED_CURRENCIES", "USD"
+        "PAYSTACK_ENABLED_CURRENCIES", "KES"
     ).split(",")
     if currency.strip()
 }
