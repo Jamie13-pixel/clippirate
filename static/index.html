@@ -1,0 +1,3273 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>ClipPirate.ai</title>
+
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        :root {
+            --bg: #0b0d12;
+            --panel: #11141b;
+            --panel-2: #171a22;
+            --panel-3: #1d212b;
+            --border: #292e39;
+            --text: #f5f7fb;
+            --muted: #9299a8;
+            --primary: #7c5cff;
+            --primary-hover: #6847f5;
+            --success: #31c48d;
+            --warning: #f5b942;
+            --danger: #ef5b6b;
+            --radius: 14px;
+        }
+
+        body {
+            font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        button, input, select, textarea { font: inherit; }
+        button { cursor: pointer; }
+        .hidden { display: none !important; }
+
+        /* =========================
+           AUTH SCREEN
+        ========================= */
+
+        #authScreen {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+            background:
+                radial-gradient(circle at top left, rgba(124, 92, 255, 0.20), transparent 35%),
+                radial-gradient(circle at bottom right, rgba(49, 196, 141, 0.08), transparent 30%),
+                var(--bg);
+        }
+
+        .auth-wrapper {
+            width: 100%;
+            max-width: 1050px;
+            display: grid;
+            grid-template-columns: 1fr 430px;
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 22px;
+            overflow: hidden;
+            box-shadow: 0 30px 80px rgba(0, 0, 0, 0.35);
+        }
+
+        .auth-brand {
+            padding: 55px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            background: linear-gradient(145deg, rgba(124, 92, 255, 0.20), transparent 60%);
+        }
+
+        .brand-logo {
+            font-size: 32px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            margin-bottom: 20px;
+        }
+
+        .brand-logo span { color: var(--primary); }
+
+        .auth-brand h1 {
+            font-size: 46px;
+            line-height: 1.08;
+            margin-bottom: 18px;
+            letter-spacing: -1.5px;
+        }
+
+        .auth-brand p {
+            color: var(--muted);
+            font-size: 17px;
+            line-height: 1.7;
+            max-width: 540px;
+        }
+
+        .feature-list {
+            margin-top: 30px;
+            display: grid;
+            gap: 14px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #d8dce5;
+        }
+
+        .feature-icon {
+            width: 30px;
+            height: 30px;
+            border-radius: 9px;
+            background: rgba(124, 92, 255, 0.15);
+            color: #a895ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .auth-card {
+            padding: 40px;
+            background: #0f1117;
+        }
+
+        .auth-card h2 {
+            font-size: 27px;
+            margin-bottom: 8px;
+        }
+
+        .auth-subtitle {
+            color: var(--muted);
+            margin-bottom: 28px;
+        }
+
+        .auth-tabs {
+            display: flex;
+            gap: 4px;
+            background: var(--panel-2);
+            padding: 4px;
+            border-radius: 10px;
+            margin-bottom: 25px;
+        }
+
+        .auth-tab {
+            flex: 1;
+            border: 0;
+            padding: 11px;
+            color: var(--muted);
+            background: transparent;
+            border-radius: 8px;
+        }
+
+        .auth-tab.active {
+            background: var(--panel-3);
+            color: white;
+        }
+
+        .form-group { margin-bottom: 17px; }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #dce0e8;
+            font-size: 14px;
+        }
+
+        input, select, textarea {
+            width: 100%;
+            background: #0b0d12;
+            color: white;
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 12px 13px;
+            outline: none;
+            transition: border 0.2s;
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 130px;
+        }
+
+        input:focus, select:focus, textarea:focus { border-color: var(--primary); }
+
+        .primary-btn {
+            width: 100%;
+            border: 0;
+            padding: 13px 18px;
+            border-radius: 10px;
+            color: white;
+            font-weight: 700;
+            background: var(--primary);
+            transition: 0.2s;
+        }
+
+        .primary-btn:hover { background: var(--primary-hover); }
+
+        .secondary-btn {
+            border: 1px solid var(--border);
+            background: var(--panel-2);
+            color: white;
+            padding: 11px 16px;
+            border-radius: 9px;
+        }
+
+        .secondary-btn:hover { background: var(--panel-3); }
+
+        .danger-btn {
+            border: 1px solid rgba(239, 91, 107, 0.3);
+            background: rgba(239, 91, 107, 0.08);
+            color: #ff8995;
+            padding: 11px 16px;
+            border-radius: 9px;
+        }
+
+        .auth-message {
+            margin-bottom: 15px;
+            padding: 11px 13px;
+            border-radius: 9px;
+            display: none;
+            font-size: 14px;
+        }
+
+        .auth-message.error {
+            display: block;
+            background: rgba(239, 91, 107, 0.10);
+            color: #ff8995;
+            border: 1px solid rgba(239, 91, 107, 0.2);
+        }
+
+        .auth-message.success {
+            display: block;
+            background: rgba(49, 196, 141, 0.10);
+            color: #6ce0b1;
+            border: 1px solid rgba(49, 196, 141, 0.2);
+        }
+
+        /* =========================
+           APP
+        ========================= */
+
+        #appScreen {
+            min-height: 100vh;
+            display: flex;
+        }
+
+        .sidebar {
+            width: 250px;
+            min-height: 100vh;
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            display: flex;
+            flex-direction: column;
+            background: #0d0f14;
+            border-right: 1px solid var(--border);
+            padding: 20px 14px;
+            z-index: 20;
+        }
+
+        .sidebar-logo {
+            padding: 10px 12px 25px;
+            font-size: 23px;
+            font-weight: 800;
+        }
+
+        .sidebar-logo span { color: var(--primary); }
+
+        .nav {
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+
+        .nav-button {
+            width: 100%;
+            border: 0;
+            background: transparent;
+            color: #9299a8;
+            padding: 12px 13px;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            text-align: left;
+            transition: 0.2s;
+        }
+
+        .nav-button:hover {
+            background: var(--panel-2);
+            color: white;
+        }
+
+        .nav-button.active {
+            background: rgba(124, 92, 255, 0.15);
+            color: #c3b8ff;
+        }
+
+        .nav-icon {
+            width: 21px;
+            text-align: center;
+        }
+
+        .sidebar-bottom { margin-top: auto; }
+
+        .user-mini {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px;
+            margin-bottom: 10px;
+        }
+
+        .user-mini-name {
+            font-size: 14px;
+            font-weight: 700;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .user-mini-email {
+            color: var(--muted);
+            font-size: 11px;
+            margin-top: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .logout-btn {
+            width: 100%;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--muted);
+            padding: 10px;
+            border-radius: 9px;
+        }
+
+        .logout-btn:hover {
+            color: white;
+            background: var(--panel-2);
+        }
+
+        .main {
+            margin-left: 250px;
+            width: calc(100% - 250px);
+            min-height: 100vh;
+        }
+
+        /* =========================
+           SIDEBAR COLLAPSE TOGGLE
+        ========================= */
+
+        .sidebar, .main {
+            transition: width 0.25s ease, margin-left 0.25s ease;
+        }
+
+        .sidebar-top {
+            display: flex;
+            align-items: flex-start;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .sidebar-toggle {
+            width: 34px;
+            height: 34px;
+            flex-shrink: 0;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--muted);
+            border-radius: 10px;
+            font-size: 18px;
+            line-height: 1;
+            transition: 0.2s;
+        }
+
+        .sidebar-toggle:hover {
+            background: var(--panel-2);
+            color: white;
+        }
+
+        @media (min-width: 701px) {
+
+            #appScreen.sidebar-collapsed .sidebar {
+                width: 72px;
+                padding: 20px 10px;
+            }
+
+            #appScreen.sidebar-collapsed .sidebar-top { justify-content: center; }
+            #appScreen.sidebar-collapsed .sidebar-logo { display: none; }
+
+            #appScreen.sidebar-collapsed .sidebar-toggle {
+                margin-top: 0;
+                margin-bottom: 18px;
+            }
+
+            #appScreen.sidebar-collapsed .nav-button {
+                justify-content: center;
+                padding: 12px 8px;
+            }
+
+            #appScreen.sidebar-collapsed .nav-label,
+            #appScreen.sidebar-collapsed .user-mini { display: none; }
+
+            #appScreen.sidebar-collapsed .logout-btn {
+                font-size: 0;
+                padding: 10px 0;
+            }
+
+            #appScreen.sidebar-collapsed .logout-btn::before {
+                content: "\23FB";
+                font-size: 16px;
+            }
+
+            #appScreen.sidebar-collapsed .main {
+                margin-left: 72px;
+                width: calc(100% - 72px);
+            }
+        }
+
+        @media (max-width: 700px) {
+            .sidebar-toggle { display: none; }
+        }
+
+        .topbar {
+            height: 70px;
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 30px;
+            background: rgba(11, 13, 18, 0.9);
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            backdrop-filter: blur(10px);
+        }
+
+        .page-title {
+            font-size: 20px;
+            font-weight: 750;
+        }
+
+        .topbar-right {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .credit-pill {
+            background: rgba(124, 92, 255, 0.12);
+            border: 1px solid rgba(124, 92, 255, 0.25);
+            color: #c7bcff;
+            padding: 8px 12px;
+            border-radius: 20px;
+            font-size: 13px;
+        }
+
+        .content {
+            padding: 30px;
+            max-width: 1500px;
+            margin: auto;
+        }
+
+        /* =========================
+           DASHBOARD
+        ========================= */
+
+        .welcome { margin-bottom: 28px; }
+
+        .welcome h1 {
+            font-size: 30px;
+            margin-bottom: 7px;
+            letter-spacing: -0.5px;
+        }
+
+        .welcome p { color: var(--muted); }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .stat-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+        }
+
+        .stat-label {
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 10px;
+        }
+
+        .stat-value {
+            font-size: 27px;
+            font-weight: 800;
+        }
+
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1fr;
+            gap: 18px;
+        }
+
+        .panel {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 20px;
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 18px;
+        }
+
+        .panel-header h3 { font-size: 17px; }
+
+        .panel-header span {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .quick-create {
+            min-height: 210px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: flex-start;
+            background:
+                linear-gradient(140deg, rgba(124, 92, 255, 0.18), transparent 60%),
+                var(--panel);
+        }
+
+        .quick-create h2 { margin-bottom: 8px; }
+
+        .quick-create p {
+            color: var(--muted);
+            margin-bottom: 20px;
+            max-width: 520px;
+        }
+
+        .create-btn {
+            border: 0;
+            background: var(--primary);
+            color: white;
+            padding: 12px 18px;
+            border-radius: 9px;
+            font-weight: 700;
+        }
+
+        .create-btn:hover { background: var(--primary-hover); }
+
+        /* =========================
+           PROJECTS
+        ========================= */
+
+        .section-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 25px;
+        }
+
+        .section-header h1 { font-size: 28px; }
+
+        .section-header p {
+            color: var(--muted);
+            margin-top: 5px;
+        }
+
+        .project-list {
+            display: grid;
+            gap: 12px;
+        }
+
+        .project-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 13px;
+            padding: 17px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+        }
+
+        .project-info h3 {
+            font-size: 15px;
+            margin-bottom: 7px;
+        }
+
+        .project-meta {
+            color: var(--muted);
+            font-size: 12px;
+        }
+
+        .project-actions {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+        }
+
+        .status {
+            font-size: 11px;
+            padding: 6px 9px;
+            border-radius: 20px;
+        }
+
+        .status.completed {
+            background: rgba(49, 196, 141, 0.10);
+            color: #63dcae;
+        }
+
+        .status.processing {
+            background: rgba(245, 185, 66, 0.10);
+            color: #f5c966;
+        }
+
+        .status.failed {
+            background: rgba(239, 91, 107, 0.10);
+            color: #ff8490;
+        }
+
+        .status.pending {
+            background: rgba(124, 92, 255, 0.10);
+            color: #b7aaff;
+        }
+
+        .empty-state {
+            padding: 55px 20px;
+            text-align: center;
+            color: var(--muted);
+            border: 1px dashed var(--border);
+            border-radius: 13px;
+        }
+
+        /* =========================
+           CREATE VIDEO
+        ========================= */
+
+        .create-layout {
+            display: grid;
+            grid-template-columns: 1.5fr 0.8fr;
+            gap: 20px;
+        }
+
+        .form-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 25px;
+        }
+
+        .form-card h2 { margin-bottom: 6px; }
+
+        .form-card > p {
+            color: var(--muted);
+            margin-bottom: 25px;
+            font-size: 14px;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .form-grid .full { grid-column: 1 / -1; }
+
+        .checkbox-row {
+            display: flex;
+            align-items: center;
+            gap: 9px;
+            color: #d9dce4;
+            font-size: 14px;
+        }
+
+        .checkbox-row input { width: auto; }
+
+        .generation-box {
+            border: 1px solid var(--border);
+            background: #0c0e13;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .generation-box h3 { margin-bottom: 8px; }
+
+        .generation-box p {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.6;
+        }
+
+        .generation-status {
+            margin-top: 18px;
+            padding: 12px;
+            border-radius: 9px;
+            display: none;
+        }
+
+        .generation-status.show { display: block; }
+
+        .generation-status.loading {
+            background: rgba(124, 92, 255, 0.10);
+            color: #c2b7ff;
+        }
+
+        .generation-status.success {
+            background: rgba(49, 196, 141, 0.10);
+            color: #63dcae;
+        }
+
+        .generation-status.error {
+            background: rgba(239, 91, 107, 0.10);
+            color: #ff8490;
+        }
+
+        /* =========================
+           TEMPLATES
+        ========================= */
+
+        .template-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .template-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            overflow: hidden;
+        }
+
+        .template-preview {
+            height: 150px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(145deg, rgba(124, 92, 255, 0.25), rgba(49, 196, 141, 0.06));
+            font-size: 38px;
+        }
+
+        .template-body { padding: 16px; }
+        .template-body h3 { margin-bottom: 7px; }
+
+        .template-body p {
+            color: var(--muted);
+            font-size: 13px;
+            line-height: 1.5;
+            margin-bottom: 14px;
+        }
+
+        .template-use {
+            width: 100%;
+            padding: 10px;
+            border-radius: 8px;
+            background: var(--panel-3);
+            border: 1px solid var(--border);
+            color: white;
+        }
+
+        .template-use:hover { border-color: var(--primary); }
+
+        /* =========================
+           ANALYTICS
+        ========================= */
+
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 17px;
+        }
+
+        .analytics-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px;
+        }
+
+        .analytics-card h3 {
+            color: var(--muted);
+            font-size: 13px;
+            margin-bottom: 12px;
+        }
+
+        .analytics-number {
+            font-size: 31px;
+            font-weight: 800;
+        }
+
+        .usage-bar {
+            height: 9px;
+            background: var(--panel-3);
+            border-radius: 20px;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .usage-fill {
+            height: 100%;
+            width: 0%;
+            background: var(--primary);
+            transition: width 0.5s;
+        }
+
+        /* =========================
+           SETTINGS
+        ========================= */
+
+        .settings-layout {
+            display: grid;
+            grid-template-columns: 220px 1fr;
+            gap: 20px;
+        }
+
+        .settings-nav {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 9px;
+            height: fit-content;
+        }
+
+        .settings-nav button {
+            width: 100%;
+            text-align: left;
+            background: transparent;
+            color: var(--muted);
+            border: 0;
+            padding: 11px;
+            border-radius: 8px;
+            margin-bottom: 3px;
+        }
+
+        .settings-nav button:hover,
+        .settings-nav button.active {
+            background: var(--panel-3);
+            color: white;
+        }
+
+        .settings-panel { display: none; }
+        .settings-panel.active { display: block; }
+
+        .setting-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 20px;
+            padding: 17px 0;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .setting-row:last-child { border-bottom: 0; }
+
+        .setting-info h3 {
+            font-size: 14px;
+            margin-bottom: 5px;
+        }
+
+        .setting-info p {
+            color: var(--muted);
+            font-size: 12px;
+            max-width: 550px;
+            line-height: 1.5;
+        }
+
+        .setting-control { min-width: 180px; }
+
+        .save-settings {
+            margin-top: 20px;
+            width: auto;
+        }
+
+        /* =========================
+           TOAST
+        ========================= */
+
+        #toast {
+            position: fixed;
+            right: 25px;
+            bottom: 25px;
+            background: var(--panel-3);
+            border: 1px solid var(--border);
+            color: white;
+            padding: 13px 17px;
+            border-radius: 10px;
+            box-shadow: 0 15px 40px rgba(0,0,0,0.3);
+            display: none;
+            z-index: 100;
+        }
+
+        #toast.show { display: block; }
+
+        /* =========================
+           RESPONSIVE
+        ========================= */
+
+        @media (max-width: 1000px) {
+            .auth-wrapper {
+                grid-template-columns: 1fr;
+                max-width: 500px;
+            }
+
+            .auth-brand { display: none; }
+
+            .stats-grid { grid-template-columns: repeat(2, 1fr); }
+
+            .dashboard-grid,
+            .create-layout { grid-template-columns: 1fr; }
+
+            .template-grid { grid-template-columns: repeat(2, 1fr); }
+
+            .settings-layout { grid-template-columns: 1fr; }
+
+            .settings-nav {
+                display: flex;
+                overflow-x: auto;
+            }
+
+            .settings-nav button { min-width: 130px; }
+        }
+
+        @media (max-width: 700px) {
+            .sidebar {
+                width: 70px;
+                padding: 12px 8px;
+            }
+
+            .sidebar-logo {
+                font-size: 0;
+                text-align: center;
+            }
+
+            .sidebar-logo span { font-size: 20px; }
+
+            .nav-button {
+                justify-content: center;
+                padding: 12px 8px;
+            }
+
+            .nav-label,
+            .user-mini,
+            .logout-btn { display: none; }
+
+            .main {
+                margin-left: 70px;
+                width: calc(100% - 70px);
+            }
+
+            .topbar { padding: 0 16px; }
+            .content { padding: 18px; }
+
+            .stats-grid { grid-template-columns: 1fr; }
+
+            .template-grid,
+            .analytics-grid { grid-template-columns: 1fr; }
+
+            .form-grid { grid-template-columns: 1fr; }
+            .form-grid .full { grid-column: auto; }
+
+            .project-card {
+                align-items: flex-start;
+                flex-direction: column;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<!-- =========================================================
+     AUTH SCREEN
+========================================================= -->
+
+<div id="authScreen">
+
+    <div class="auth-wrapper">
+
+        <div class="auth-brand">
+
+            <div class="brand-logo">Clip<span>Pirate</span>.ai</div>
+
+            <h1>Turn ideas into videos.</h1>
+
+            <p>
+                Create engaging short-form videos from a simple topic.
+                Generate scripts, narration and videos from one place.
+            </p>
+
+            <div class="feature-list">
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <span>AI-powered script generation</span>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <span>Automated video generation</span>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <span>Projects and generation history</span>
+                </div>
+                <div class="feature-item">
+                    <div class="feature-icon">✓</div>
+                    <span>Custom video preferences</span>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="auth-card">
+
+            <h2 id="authTitle">Welcome back</h2>
+
+            <p class="auth-subtitle" id="authSubtitle">
+                Sign in to continue to ClipPirate.
+            </p>
+
+            <div class="auth-tabs">
+                <button class="auth-tab active" id="loginTab" onclick="showLogin()">Login</button>
+                <button class="auth-tab" id="signupTab" onclick="showSignup()">Create Account</button>
+            </div>
+
+            <div id="authMessage" class="auth-message"></div>
+
+            <!-- LOGIN -->
+            <form id="loginForm">
+                <div class="form-group">
+                    <label>Email</label>
+                    <input id="loginEmail" type="email" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input id="loginPassword" type="password" placeholder="Your password" required>
+                </div>
+                <button class="primary-btn" type="submit" id="loginButton">Login</button>
+            </form>
+
+            <!-- SIGNUP -->
+            <form id="signupForm" class="hidden">
+                <div class="form-group">
+                    <label>Name</label>
+                    <input id="signupName" type="text" placeholder="Your name" minlength="2" required>
+                </div>
+                <div class="form-group">
+                    <label>Email</label>
+                    <input id="signupEmail" type="email" placeholder="you@example.com" required>
+                </div>
+                <div class="form-group">
+                    <label>Password</label>
+                    <input id="signupPassword" type="password" placeholder="At least 8 characters" minlength="8" required>
+                </div>
+                <button class="primary-btn" type="submit" id="signupButton">Create Account</button>
+            </form>
+
+        </div>
+
+    </div>
+
+</div>
+
+
+<!-- =========================================================
+     APPLICATION
+========================================================= -->
+
+<div id="appScreen" class="hidden">
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="sidebar-top">
+
+            <div class="sidebar-logo">Clip<span>Pirate</span></div>
+
+            <button
+                id="sidebarToggle"
+                class="sidebar-toggle"
+                type="button"
+                onclick="toggleSidebar()"
+                aria-label="Collapse sidebar"
+                aria-expanded="true"
+                title="Collapse sidebar"
+            >
+                &#8249;
+            </button>
+
+        </div>
+
+        <nav class="nav">
+
+            <button class="nav-button active" data-page="dashboard" onclick="navigate('dashboard')">
+                <span class="nav-icon">⌂</span>
+                <span class="nav-label">Dashboard</span>
+            </button>
+
+            <button class="nav-button" data-page="projects" onclick="navigate('projects')">
+                <span class="nav-icon">▣</span>
+                <span class="nav-label">Projects</span>
+            </button>
+
+            <button class="nav-button" data-page="create" onclick="navigate('create')">
+                <span class="nav-icon">＋</span>
+                <span class="nav-label">Create Video</span>
+            </button>
+
+            <button class="nav-button" data-page="templates" onclick="navigate('templates')">
+                <span class="nav-icon">◆</span>
+                <span class="nav-label">Templates</span>
+            </button>
+
+            <button class="nav-button" data-page="analytics" onclick="navigate('analytics')">
+                <span class="nav-icon">◒</span>
+                <span class="nav-label">Analytics</span>
+            </button>
+
+            <button class="nav-button" data-page="settings" onclick="navigate('settings')">
+                <span class="nav-icon">⚙</span>
+                <span class="nav-label">Settings</span>
+            </button>
+
+        </nav>
+
+        <div class="sidebar-bottom">
+
+            <div class="user-mini">
+                <div class="user-mini-name" id="sidebarUserName">User</div>
+                <div class="user-mini-email" id="sidebarUserEmail">user@example.com</div>
+            </div>
+
+            <button class="logout-btn" onclick="logout()">Logout</button>
+
+        </div>
+
+    </aside>
+
+
+    <!-- MAIN -->
+
+    <main class="main">
+
+        <header class="topbar">
+
+            <div class="page-title" id="pageTitle">Dashboard</div>
+
+            <div class="topbar-right">
+                <div class="credit-pill">
+                    Credits: <strong id="topCredits">—</strong>
+                </div>
+            </div>
+
+        </header>
+
+        <div class="content">
+
+            <!-- DASHBOARD PAGE -->
+
+            <section id="page-dashboard" class="page">
+
+                <div class="welcome">
+                    <h1>Welcome back, <span id="welcomeName">Creator</span></h1>
+                    <p>Create your next video or manage your existing projects.</p>
+                </div>
+
+                <div class="stats-grid">
+
+                    <div class="stat-card">
+                        <div class="stat-label">Available Credits</div>
+                        <div class="stat-value" id="dashboardCredits">—</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Projects</div>
+                        <div class="stat-value" id="dashboardProjects">—</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Used Today</div>
+                        <div class="stat-value" id="dashboardUsage">—</div>
+                    </div>
+
+                    <div class="stat-card">
+                        <div class="stat-label">Current Plan</div>
+                        <div class="stat-value" id="dashboardPlan" style="font-size:20px">—</div>
+                    </div>
+
+                </div>
+
+                <div class="dashboard-grid">
+
+                    <div class="panel quick-create">
+                        <h2>Create your next video</h2>
+                        <p>Enter a topic and let ClipPirate generate your short-form video.</p>
+                        <button class="create-btn" onclick="navigate('create')">Create Video</button>
+                    </div>
+
+                    <div class="panel">
+                        <div class="panel-header">
+                            <h3>Recent Projects</h3>
+                            <span>Latest</span>
+                        </div>
+                        <div id="recentProjects">Loading...</div>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- PROJECTS PAGE -->
+
+            <section id="page-projects" class="page hidden">
+
+                <div class="section-header">
+                    <div>
+                        <h1>Projects</h1>
+                        <p>Manage your generated videos.</p>
+                    </div>
+                    <button class="create-btn" onclick="navigate('create')">+ Create Video</button>
+                </div>
+
+                <div class="project-list" id="projectList">Loading projects...</div>
+
+            </section>
+
+
+            <!-- CREATE VIDEO PAGE -->
+
+            <section id="page-create" class="page hidden">
+
+                <div class="section-header">
+                    <div>
+                        <h1>Create Video</h1>
+                        <p>Turn your idea into a short-form video.</p>
+                    </div>
+                </div>
+
+                <div class="create-layout">
+
+                    <div class="form-card">
+
+                        <h2>Video settings</h2>
+
+                        <p>Choose how you want your video generated.</p>
+
+                        <form id="generateForm">
+
+                            <div class="form-grid">
+
+                                <div class="form-group full">
+
+                                    <label>Video Topic</label>
+
+                                    <div
+                                        id="activeTemplateChip"
+                                        class="hidden"
+                                        style="display:inline-flex;align-items:center;gap:8px;margin-bottom:8px;padding:5px 10px;border-radius:999px;background:rgba(124,92,255,0.15);color:#c3b8ff;font-size:12px;"
+                                    >
+                                        Template: <strong id="activeTemplateName"></strong>
+                                        <button
+                                            type="button"
+                                            onclick="clearActiveTemplate()"
+                                            title="Remove template"
+                                            aria-label="Remove template"
+                                            style="border:0;background:transparent;color:inherit;font-size:14px;line-height:1;"
+                                        >&times;</button>
+                                    </div>
+
+                                    <textarea
+                                        id="videoTopic"
+                                        placeholder="Example: Amazing facts about Kenya"
+                                        required
+                                    ></textarea>
+
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Duration</label>
+                                    <select id="videoDuration">
+                                        <option value="30">30 seconds</option>
+                                        <option value="45">45 seconds</option>
+                                        <option value="60">60 seconds</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Aspect Ratio</label>
+                                    <select id="videoRatio">
+                                        <option value="9:16">9:16 — Shorts / Reels / TikTok</option>
+                                        <option value="16:9">16:9 — YouTube</option>
+                                        <option value="1:1">1:1 — Square</option>
+                                        <option value="4:3">4:3</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Voice</label>
+                                    <select id="videoVoice">
+                                        <option value="professional">Professional</option>
+                                        <option value="energetic">Energetic</option>
+                                        <option value="calm">Calm</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Captions</label>
+                                    <label class="checkbox-row">
+                                        <input id="videoCaptions" type="checkbox" checked>
+                                        Include captions
+                                    </label>
+                                </div>
+
+                                <div class="full">
+                                    <button class="primary-btn" type="submit" id="generateButton">
+                                        Generate Video
+                                    </button>
+                                </div>
+
+                            </div>
+
+                        </form>
+
+                    </div>
+
+                    <div>
+                        <div class="generation-box">
+                            <h3>Generation</h3>
+                            <p>
+                                Your topic will be sent to the ClipPirate
+                                generation service. The video will be processed
+                                in the background.
+                            </p>
+                            <div id="generationStatus" class="generation-status"></div>
+                        </div>
+                    </div>
+
+                </div>
+
+            </section>
+
+
+            <!-- TEMPLATES PAGE -->
+
+            <section id="page-templates" class="page hidden">
+
+                <div class="section-header">
+                    <div>
+                        <h1>Templates</h1>
+                        <p>Start your next video from a predefined style.</p>
+                        <p id="templatesStatus" style="color:var(--muted);font-size:12px;margin-top:6px;"></p>
+                    </div>
+                </div>
+
+                <div class="template-grid" id="templatesGrid"></div>
+
+            </section>
+
+
+            <!-- ANALYTICS PAGE -->
+
+            <section id="page-analytics" class="page hidden">
+
+                <div class="section-header">
+                    <div>
+                        <h1>Analytics</h1>
+                        <p>Monitor your ClipPirate usage.</p>
+                    </div>
+                </div>
+
+                <div class="analytics-grid">
+
+                    <div class="analytics-card">
+                        <h3>Videos Generated Today</h3>
+                        <div class="analytics-number" id="analyticsToday">—</div>
+                    </div>
+
+                    <div class="analytics-card">
+                        <h3>Daily Generation Limit</h3>
+                        <div class="analytics-number" id="analyticsLimit">—</div>
+                    </div>
+
+                    <div class="analytics-card">
+                        <h3>Remaining Today</h3>
+                        <div class="analytics-number" id="analyticsRemaining">—</div>
+                    </div>
+
+                </div>
+
+                <div class="panel" style="margin-top:20px">
+
+                    <div class="panel-header">
+                        <h3>Daily Generation Usage</h3>
+                    </div>
+
+                    <div class="usage-bar">
+                        <div id="usageFill" class="usage-fill"></div>
+                    </div>
+
+                    <p id="usageText" style="color:var(--muted);margin-top:10px;font-size:13px;">
+                        Loading usage...
+                    </p>
+
+                </div>
+
+            </section>
+
+
+            <!-- SETTINGS PAGE -->
+
+            <section id="page-settings" class="page hidden">
+
+                <div class="section-header">
+                    <div>
+                        <h1>Settings</h1>
+                        <p>Manage your ClipPirate account and preferences.</p>
+                    </div>
+                </div>
+
+                <div class="settings-layout">
+
+                    <div class="settings-nav">
+                        <button class="active" onclick="showSettingsPanel('profile', this)">Profile</button>
+                        <button onclick="showSettingsPanel('preferences', this)">Preferences</button>
+                        <button onclick="showSettingsPanel('account', this)">Account</button>
+                        <button onclick="showSettingsPanel('security', this)">Security</button>
+                    </div>
+
+                    <div class="form-card">
+
+                        <!-- PROFILE -->
+
+                        <div id="settings-profile" class="settings-panel active">
+
+                            <h2>Profile</h2>
+                            <p>Your ClipPirate account information.</p>
+
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <h3>Name</h3>
+                                    <p>The name associated with your account.</p>
+                                </div>
+                                <div class="setting-control" id="settingsName">—</div>
+                            </div>
+
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <h3>Email</h3>
+                                    <p>Your account email address.</p>
+                                </div>
+                                <div class="setting-control" id="settingsEmail">—</div>
+                            </div>
+
+                        </div>
+
+                        <!-- PREFERENCES -->
+
+                        <div id="settings-preferences" class="settings-panel">
+
+                            <h2>Preferences</h2>
+                            <p>Choose the defaults ClipPirate should use when creating videos.</p>
+
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <h3>Default Duration</h3>
+                                    <p>Default video length for new projects.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <select id="prefDuration">
+                                        <option value="30">30 seconds</option>
+                                        <option value="45">45 seconds</option>
+                                        <option value="60">60 seconds</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <h3>Default Aspect Ratio</h3>
+                                    <p>The default format for generated videos.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <select id="prefRatio">
+                                        <option value="9:16">9:16</option>
+                                        <option value="16:9">16:9</option>
+                                        <option value="1:1">1:1</option>
+                                        <option value="4:3">4:3</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <h3>Default Voice</h3>
+                                    <p>Voice profile used for new videos.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <select id="prefVoice">
+                                        <option value="professional">Professional</option>
+                                        <option value="energetic">Energetic</option>
+                                        <option value="calm">Calm</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <h3>Default Captions</h3>
+                                    <p>Automatically enable captions on new videos.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="checkbox-row">
+                                        <input id="prefCaptions" type="checkbox">
+                                        Enabled
+                                    </label>
+                                </div>
+                            </div>
+
+                            <button class="create-btn save-settings" onclick="savePreferences()">
+                                Save Preferences
+                            </button>
+
+                        </div>
+
+                        <!-- ACCOUNT -->
+
+                        <div id="settings-account" class="settings-panel">
+
+                            <h2>Account</h2>
+                            <p>Information about your current ClipPirate plan.</p>
+
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <h3>Current Plan</h3>
+                                    <p>Your current subscription plan.</p>
+                                </div>
+                                <div class="setting-control" id="accountPlan">—</div>
+                            </div>
+
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <h3>Credits</h3>
+                                    <p>Credits currently available to your account.</p>
+                                </div>
+                                <div class="setting-control" id="accountCredits">—</div>
+                            </div>
+
+                            <h3 style="margin:36px 0 6px;">Subscription plans</h3>
+
+                            <div
+                                id="plansGrid"
+                                style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-top:16px;"
+                            ></div>
+
+                        </div>
+
+                        <!-- SECURITY -->
+
+                        <div id="settings-security" class="settings-panel">
+
+                            <h2>Security</h2>
+                            <p>Manage your current session.</p>
+
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <h3>Logout</h3>
+                                    <p>Sign out of your ClipPirate account on this device.</p>
+                                </div>
+                                <button class="secondary-btn" onclick="logout()">Logout</button>
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </section>
+
+        </div>
+
+    </main>
+
+</div>
+
+
+<div id="toast"></div>
+
+
+<script src="https://js.paystack.co/v2/inline.js"></script>
+
+<script>
+
+    /* =====================================================
+       APPLICATION STATE
+    ===================================================== */
+
+    let currentUser = null;
+    let currentPage = "dashboard";
+    let statusTimer = null;
+    let activeTemplate = null;
+    let templatesVersion = null;
+    let templatesTimer = null;
+    let analyticsTimer = null;
+    let templateRegistry = {};
+    let currentPlanId = "free";
+
+    const PLAN_PRICES_KSH = { free: 0, starter: 300, pro: 600, mega: 1200 };
+    const SIDEBAR_STORAGE_KEY = "clipPirateSidebarCollapsed";
+
+
+    /* =====================================================
+       BASIC HELPERS
+    ===================================================== */
+
+    function showToast(message) {
+
+        const toast = document.getElementById("toast");
+
+        toast.textContent = message;
+        toast.classList.add("show");
+
+        setTimeout(() => {
+            toast.classList.remove("show");
+        }, 3000);
+    }
+
+
+    function showAuthMessage(message, type = "error") {
+
+        const box = document.getElementById("authMessage");
+
+        box.textContent = message;
+        box.className = "auth-message " + type;
+    }
+
+
+    function clearAuthMessage() {
+
+        const box = document.getElementById("authMessage");
+
+        box.textContent = "";
+        box.className = "auth-message";
+    }
+
+
+    function escapeHtml(value) {
+
+        return String(value ?? "")
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
+
+    function escapeAttribute(value) {
+        return escapeHtml(value);
+    }
+
+
+    async function api(url, options = {}) {
+
+        const response = await fetch(url, {
+            credentials: "include",
+            ...options,
+            headers: {
+                "Content-Type": "application/json",
+                ...(options.headers || {})
+            }
+        });
+
+        let data = null;
+
+        try {
+            data = await response.json();
+        } catch {
+            data = null;
+        }
+
+        if (!response.ok) {
+
+            let message = "Something went wrong.";
+
+            if (data) {
+
+                if (typeof data.detail === "string") {
+                    message = data.detail;
+                } else if (
+                    data.detail &&
+                    typeof data.detail.message === "string"
+                ) {
+                    message = data.detail.message;
+                }
+            }
+
+            throw new Error(message);
+        }
+
+        return data;
+    }
+
+
+    async function readJsonSafe(response) {
+
+        const text = await response.text();
+
+        try {
+            return text ? JSON.parse(text) : {};
+        } catch {
+
+            const snippet = text.replace(/<[^>]*>/g, " ").trim().slice(0, 120);
+
+            throw new Error(
+                `Server returned a non-JSON response (HTTP ${response.status})` +
+                (snippet ? `: ${snippet}` : ".")
+            );
+        }
+    }
+
+
+    function planApiBase() {
+        return typeof API_BASE !== "undefined" ? API_BASE : "";
+    }
+
+
+    /* =====================================================
+       AUTH TABS
+    ===================================================== */
+
+    function showLogin() {
+
+        document.getElementById("loginTab").classList.add("active");
+        document.getElementById("signupTab").classList.remove("active");
+
+        document.getElementById("loginForm").classList.remove("hidden");
+        document.getElementById("signupForm").classList.add("hidden");
+
+        document.getElementById("authTitle").textContent = "Welcome back";
+        document.getElementById("authSubtitle").textContent =
+            "Sign in to continue to ClipPirate.";
+
+        clearAuthMessage();
+    }
+
+
+    function showSignup() {
+
+        document.getElementById("loginTab").classList.remove("active");
+        document.getElementById("signupTab").classList.add("active");
+
+        document.getElementById("loginForm").classList.add("hidden");
+        document.getElementById("signupForm").classList.remove("hidden");
+
+        document.getElementById("authTitle").textContent = "Create your account";
+        document.getElementById("authSubtitle").textContent =
+            "Start creating videos with ClipPirate.";
+
+        clearAuthMessage();
+    }
+
+
+    /* =====================================================
+       AUTH CHECK
+    ===================================================== */
+
+    async function checkAuthentication() {
+
+        try {
+
+            const data = await api("/auth/me");
+
+            if (data && data.user) {
+
+                currentUser = data.user;
+
+                enterApplication();
+
+                return true;
+            }
+
+        } catch (error) {
+            // User is not logged in.
+        }
+
+        showAuthScreen();
+
+        return false;
+    }
+
+
+    function showAuthScreen() {
+
+        stopAnalyticsRefresh();
+        stopTemplatesRefresh();
+
+        document.getElementById("authScreen").classList.remove("hidden");
+        document.getElementById("appScreen").classList.add("hidden");
+    }
+
+
+    function enterApplication() {
+
+        document.getElementById("authScreen").classList.add("hidden");
+        document.getElementById("appScreen").classList.remove("hidden");
+
+        updateUserInterface();
+
+        loadDashboard();
+
+        navigate("dashboard");
+    }
+
+
+    function updateUserInterface() {
+
+        if (!currentUser) {
+            return;
+        }
+
+        const name = currentUser.name || "Creator";
+        const email = currentUser.email || "";
+
+        document.getElementById("welcomeName").textContent = name;
+        document.getElementById("sidebarUserName").textContent = name;
+        document.getElementById("sidebarUserEmail").textContent = email;
+        document.getElementById("settingsName").textContent = name;
+        document.getElementById("settingsEmail").textContent = email;
+
+        const credits =
+            currentUser.credits ??
+            currentUser.credit_balance ??
+            "—";
+
+        document.getElementById("topCredits").textContent = credits;
+        document.getElementById("dashboardCredits").textContent = credits;
+        document.getElementById("accountCredits").textContent = credits;
+
+        const plan =
+            currentUser.plan ||
+            currentUser.plan_name ||
+            "Free";
+
+        document.getElementById("dashboardPlan").textContent = plan;
+        document.getElementById("accountPlan").textContent = plan;
+    }
+
+
+    /* =====================================================
+       LOGIN
+    ===================================================== */
+
+    document
+        .getElementById("loginForm")
+        .addEventListener("submit", async function (event) {
+
+            event.preventDefault();
+
+            clearAuthMessage();
+
+            const button = document.getElementById("loginButton");
+
+            button.disabled = true;
+            button.textContent = "Logging in...";
+
+            try {
+
+                const email = document.getElementById("loginEmail").value.trim();
+                const password = document.getElementById("loginPassword").value;
+
+                const data = await api("/auth/login", {
+                    method: "POST",
+                    body: JSON.stringify({ email, password })
+                });
+
+                currentUser = data.user;
+
+                enterApplication();
+
+            } catch (error) {
+
+                showAuthMessage(error.message || "Login failed.");
+
+            } finally {
+
+                button.disabled = false;
+                button.textContent = "Login";
+            }
+        });
+
+
+    /* =====================================================
+       SIGNUP
+    ===================================================== */
+
+    document
+        .getElementById("signupForm")
+        .addEventListener("submit", async function (event) {
+
+            event.preventDefault();
+
+            clearAuthMessage();
+
+            const button = document.getElementById("signupButton");
+
+            button.disabled = true;
+            button.textContent = "Creating account...";
+
+            try {
+
+                const name = document.getElementById("signupName").value.trim();
+                const email = document.getElementById("signupEmail").value.trim();
+                const password = document.getElementById("signupPassword").value;
+
+                const data = await api("/auth/signup", {
+                    method: "POST",
+                    body: JSON.stringify({ name, email, password })
+                });
+
+                currentUser = data.user;
+
+                enterApplication();
+
+            } catch (error) {
+
+                showAuthMessage(error.message || "Could not create the account.");
+
+            } finally {
+
+                button.disabled = false;
+                button.textContent = "Create Account";
+            }
+        });
+
+
+    /* =====================================================
+       LOGOUT
+    ===================================================== */
+
+    async function logout() {
+
+        try {
+            await api("/auth/logout", { method: "POST" });
+        } catch (error) {
+            console.error(error);
+        }
+
+        currentUser = null;
+
+        if (statusTimer) {
+            clearTimeout(statusTimer);
+            statusTimer = null;
+        }
+
+        showAuthScreen();
+
+        showLogin();
+
+        document.getElementById("loginPassword").value = "";
+
+        showToast("You have been logged out.");
+    }
+
+
+    /* =====================================================
+       NAVIGATION
+    ===================================================== */
+
+    function navigate(page) {
+
+        currentPage = page;
+
+        document.querySelectorAll(".page").forEach(section => {
+            section.classList.add("hidden");
+        });
+
+        const target = document.getElementById("page-" + page);
+
+        if (target) {
+            target.classList.remove("hidden");
+        }
+
+        document.querySelectorAll(".nav-button").forEach(button => {
+            button.classList.toggle("active", button.dataset.page === page);
+        });
+
+        const titles = {
+            dashboard: "Dashboard",
+            projects: "Projects",
+            create: "Create Video",
+            templates: "Templates",
+            analytics: "Analytics",
+            settings: "Settings"
+        };
+
+        document.getElementById("pageTitle").textContent =
+            titles[page] || "ClipPirate";
+
+        if (page === "dashboard") {
+            loadDashboard();
+        }
+
+        if (page === "projects") {
+            loadProjects();
+        }
+
+        stopAnalyticsRefresh();
+        stopTemplatesRefresh();
+
+        if (page === "analytics") {
+            loadAnalytics();
+            startAnalyticsRefresh();
+        }
+
+        if (page === "settings") {
+            loadPreferences();
+            loadPlans();
+        }
+
+        if (page === "templates") {
+            loadTemplates();
+            startTemplatesRefresh();
+        }
+
+        if (page === "create") {
+            loadPreferencesIntoCreateForm();
+        }
+    }
+
+
+    /* =====================================================
+       DASHBOARD
+    ===================================================== */
+
+    async function loadDashboard() {
+
+        try {
+
+            const [creditsData, projectsData, usageData] = await Promise.all([
+                api("/credits"),
+                api("/projects"),
+                api("/usage")
+            ]);
+
+            if (creditsData.user) {
+
+                currentUser = creditsData.user;
+
+                updateUserInterface();
+            }
+
+            const projects = projectsData.projects || [];
+
+            document.getElementById("dashboardProjects").textContent =
+                projects.length;
+
+            document.getElementById("dashboardUsage").textContent =
+                normalizeUsage(usageData).used;
+
+            renderRecentProjects(projects);
+
+        } catch (error) {
+
+            console.error("Dashboard error:", error);
+        }
+    }
+
+
+    function renderRecentProjects(projects) {
+
+        const container = document.getElementById("recentProjects");
+
+        if (!projects.length) {
+
+            container.innerHTML = `
+                <div class="empty-state" style="padding:30px 10px">
+                    No projects yet.
+                </div>
+            `;
+
+            return;
+        }
+
+        const recent = projects.slice(0, 4);
+
+        container.innerHTML = recent.map(project => {
+
+            const status = String(project.status || "pending").toLowerCase();
+
+            return `
+                <div style="padding:12px 0;border-bottom:1px solid var(--border);">
+                    <div style="display:flex;justify-content:space-between;gap:10px;">
+                        <strong style="font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+                            ${escapeHtml(project.topic || "Untitled Project")}
+                        </strong>
+                        <span class="status ${escapeAttribute(status)}">
+                            ${escapeHtml(status)}
+                        </span>
+                    </div>
+                </div>
+            `;
+
+        }).join("");
+    }
+
+
+    /* =====================================================
+       PROJECTS
+    ===================================================== */
+
+    async function loadProjects() {
+
+        const container = document.getElementById("projectList");
+
+        container.innerHTML = "Loading projects...";
+
+        try {
+
+            const data = await api("/projects");
+
+            const projects = data.projects || [];
+
+            if (!projects.length) {
+
+                container.innerHTML = `
+                    <div class="empty-state">
+
+                        <h3 style="color:white;margin-bottom:8px">
+                            No projects yet
+                        </h3>
+
+                        <p style="margin-bottom:18px">
+                            Create your first video to see it here.
+                        </p>
+
+                        <button class="create-btn" onclick="navigate('create')">
+                            Create Video
+                        </button>
+
+                    </div>
+                `;
+
+                return;
+            }
+
+            container.innerHTML = projects.map(project => {
+
+                const status = String(project.status || "pending").toLowerCase();
+
+                const videoUrl = project.video_url || project.download_url || "";
+
+                return `
+                    <div class="project-card">
+
+                        <div class="project-info">
+
+                            <h3>${escapeHtml(project.topic || "Untitled Project")}</h3>
+
+                            <div class="project-meta">
+                                Duration: ${escapeHtml(String(project.duration ?? "-"))} sec
+                                &nbsp;•&nbsp;
+                                Ratio: ${escapeHtml(project.aspect_ratio || "-")}
+                            </div>
+
+                        </div>
+
+                        <div class="project-actions">
+
+                            <span class="status ${escapeAttribute(status)}">
+                                ${escapeHtml(status)}
+                            </span>
+
+                            ${
+                                videoUrl
+                                ? `
+                                <a
+                                    href="${escapeAttribute(videoUrl)}"
+                                    target="_blank"
+                                    rel="noopener"
+                                    class="secondary-btn"
+                                    style="text-decoration:none"
+                                >Open</a>
+
+                                <a
+                                    href="${escapeAttribute(videoDownloadUrl(videoUrl))}"
+                                    download
+                                    class="secondary-btn"
+                                    style="text-decoration:none"
+                                >Download</a>
+                                `
+                                : ""
+                            }
+
+                        </div>
+
+                    </div>
+                `;
+
+            }).join("");
+
+        } catch (error) {
+
+            container.innerHTML = `
+                <div class="empty-state">
+                    ${escapeHtml(error.message)}
+                </div>
+            `;
+        }
+    }
+
+
+    /* =====================================================
+       CREATE VIDEO
+    ===================================================== */
+
+    document
+        .getElementById("generateForm")
+        .addEventListener("submit", async function (event) {
+
+            event.preventDefault();
+
+            // Stop any polling left over from a previous generation.
+            if (statusTimer) {
+                clearTimeout(statusTimer);
+                statusTimer = null;
+            }
+
+            const topic = document.getElementById("videoTopic").value.trim();
+
+            const duration = Number(document.getElementById("videoDuration").value);
+
+            const aspectRatio = document.getElementById("videoRatio").value;
+
+            const voice = document.getElementById("videoVoice").value;
+
+            const captions = document.getElementById("videoCaptions").checked;
+
+            if (!topic) {
+
+                showGenerationStatus("Please enter a video topic.", "error");
+
+                return;
+            }
+
+            const button = document.getElementById("generateButton");
+
+            button.disabled = true;
+            button.textContent = "Starting generation...";
+
+            showGenerationStatus("Creating your video job...", "loading");
+
+            try {
+
+                const data = await api("/generate", {
+                    method: "POST",
+                    body: JSON.stringify({
+                        topic,
+                        duration,
+                        aspect_ratio: aspectRatio,
+                        voice,
+                        captions,
+                        template_id: activeTemplate ? activeTemplate.id : ""
+                    })
+                });
+
+                if (data.credits && data.credits.credits !== undefined) {
+
+                    currentUser = data.credits;
+
+                    updateUserInterface();
+                }
+
+                showGenerationStatus(
+                    "Video generation started. Processing...",
+                    "loading"
+                );
+
+                pollJobStatus(data.job_id);
+
+            } catch (error) {
+
+                showGenerationStatus(
+                    error.message || "Generation failed.",
+                    "error"
+                );
+
+                button.disabled = false;
+                button.textContent = "Generate Video";
+            }
+        });
+
+
+    function videoDownloadUrl(url) {
+
+        try {
+
+            const name = decodeURIComponent(
+                String(url).split("?")[0].split("/").pop()
+            );
+
+            return name.toLowerCase().endsWith(".mp4")
+                ? "/download/" + encodeURIComponent(name)
+                : url;
+
+        } catch {
+            return url;
+        }
+    }
+
+
+    function videoButtonsHtml(url) {
+
+        return `
+            <a
+                href="${escapeAttribute(url)}"
+                target="_blank"
+                rel="noopener"
+                class="secondary-btn"
+                style="display:inline-block;text-decoration:none;"
+            >Open Video</a>
+
+            <a
+                href="${escapeAttribute(videoDownloadUrl(url))}"
+                download
+                class="secondary-btn"
+                style="display:inline-block;text-decoration:none;margin-left:8px;"
+            >Download Video</a>
+        `;
+    }
+
+
+    function showGenerationStatus(message, type) {
+
+        const box = document.getElementById("generationStatus");
+
+        box.textContent = message;
+
+        box.className = "generation-status show " + type;
+    }
+
+
+    /* =====================================================
+       JOB STATUS
+    ===================================================== */
+
+    async function pollJobStatus(jobId) {
+
+        const button = document.getElementById("generateButton");
+
+        try {
+
+            const data = await api("/status/" + encodeURIComponent(jobId));
+
+            if (data.status === "completed") {
+
+                showGenerationStatus("Video generated successfully!", "success");
+
+                button.disabled = false;
+                button.textContent = "Generate Video";
+
+                if (data.download_url) {
+
+                    const box = document.getElementById("generationStatus");
+
+                    box.innerHTML = `
+                        Video generated successfully.
+                        <br><br>
+                        ${videoButtonsHtml(data.download_url)}
+                    `;
+                }
+
+                loadDashboard();
+
+                return;
+            }
+
+            if (data.status === "failed") {
+
+                showGenerationStatus(
+                    data.error || "Video generation failed.",
+                    "error"
+                );
+
+                button.disabled = false;
+                button.textContent = "Generate Video";
+
+                return;
+            }
+
+            showGenerationStatus("Video is being generated...", "loading");
+
+            statusTimer = setTimeout(() => pollJobStatus(jobId), 3000);
+
+        } catch (error) {
+
+            showGenerationStatus(
+                error.message || "Could not check generation status.",
+                "error"
+            );
+
+            button.disabled = false;
+            button.textContent = "Generate Video";
+        }
+    }
+
+
+    /* =====================================================
+       TEMPLATES
+    ===================================================== */
+
+    const FALLBACK_TEMPLATES = [
+        { id: "viral-facts", name: "Viral Facts", icon: "⚡",
+          description: "Fast-paced fact videos with strong hooks.",
+          prompt: "Amazing facts about" },
+        { id: "amazing-places", name: "Amazing Places", icon: "🌍",
+          description: "Create engaging destination and travel videos.",
+          prompt: "Amazing places in" },
+        { id: "did-you-know", name: "Did You Know?", icon: "🧠",
+          description: "Educational short-form videos built around surprising facts.",
+          prompt: "Did you know facts about" },
+        { id: "storytelling", name: "Storytelling", icon: "📖",
+          description: "Build short narratives with a strong opening and conclusion.",
+          prompt: "A fascinating short story about" },
+        { id: "motivation", name: "Motivation", icon: "💡",
+          description: "Short motivational and inspirational content.",
+          prompt: "An inspiring story about" },
+        { id: "top-5-list", name: "Top 5 List", icon: "🎯",
+          description: "Create countdown-style videos and ranked lists.",
+          prompt: "Top 5 facts about" }
+    ];
+
+
+    function renderTemplates(list) {
+
+        const grid = document.getElementById("templatesGrid");
+
+        if (!grid) return;
+
+        templateRegistry = {};
+
+        grid.innerHTML = list.map(template => {
+
+            templateRegistry[template.id] = template;
+
+            return `
+                <div class="template-card">
+
+                    <div class="template-preview">
+                        ${escapeHtml(template.icon || "🎬")}
+                    </div>
+
+                    <div class="template-body">
+
+                        <h3>${escapeHtml(template.name)}</h3>
+
+                        <p>${escapeHtml(template.description || "")}</p>
+
+                        <button
+                            class="template-use"
+                            data-template-id="${escapeAttribute(template.id)}"
+                            onclick="useTemplate(this.dataset.templateId)"
+                        >
+                            Use Template
+                        </button>
+
+                    </div>
+
+                </div>
+            `;
+
+        }).join("");
+    }
+
+
+    function setTemplatesStatus(text) {
+
+        const status = document.getElementById("templatesStatus");
+
+        if (status) status.textContent = text;
+    }
+
+
+    async function loadTemplates() {
+
+        const grid = document.getElementById("templatesGrid");
+
+        if (!grid) return;
+
+        // Show something immediately; replace it when the live list arrives.
+        if (!grid.children.length) {
+            renderTemplates(FALLBACK_TEMPLATES);
+        }
+
+        try {
+
+            const response = await fetch(
+                `${planApiBase()}/templates`,
+                { credentials: "include" }
+            );
+
+            const data = await readJsonSafe(response);
+
+            if (
+                !response.ok ||
+                !Array.isArray(data.templates) ||
+                !data.templates.length
+            ) {
+                return;
+            }
+
+            // Only redraw when the list really changed.
+            if (data.version !== templatesVersion) {
+
+                templatesVersion = data.version || null;
+
+                renderTemplates(data.templates);
+            }
+
+            setTemplatesStatus(
+                "Live · updates automatically · checked " +
+                new Date().toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit"
+                })
+            );
+
+        } catch (error) {
+
+            console.error("Could not load live templates:", error);
+
+            setTemplatesStatus("Showing saved templates (live updates unavailable).");
+        }
+    }
+
+
+    function startTemplatesRefresh() {
+
+        stopTemplatesRefresh();
+
+        templatesTimer = setInterval(() => {
+
+            if (document.hidden || currentPage !== "templates") {
+                return;
+            }
+
+            loadTemplates();
+
+        }, 30000);
+    }
+
+
+    function stopTemplatesRefresh() {
+
+        if (templatesTimer) {
+            clearInterval(templatesTimer);
+            templatesTimer = null;
+        }
+    }
+
+
+    function showActiveTemplate() {
+
+        const chip = document.getElementById("activeTemplateChip");
+
+        if (!chip) return;
+
+        chip.classList.toggle("hidden", !activeTemplate);
+
+        document.getElementById("activeTemplateName").textContent =
+            activeTemplate ? activeTemplate.name : "";
+    }
+
+
+    function clearActiveTemplate() {
+
+        activeTemplate = null;
+
+        showActiveTemplate();
+    }
+
+
+    function useTemplate(templateId) {
+
+        const template = templateRegistry[templateId];
+
+        if (!template) return;
+
+        try {
+            localStorage.setItem("clipPirateTemplate", JSON.stringify(template));
+        } catch (error) {
+            // Storage unavailable; template just won't carry over.
+        }
+
+        navigate("create");
+
+        showToast(template.name + " template selected.");
+    }
+
+
+    /* =====================================================
+       ANALYTICS
+    ===================================================== */
+
+    function normalizeUsage(data) {
+
+        data = data || {};
+
+        const used = Number(
+            data.used_today ??
+            data.user_used_today ??
+            data.platform_used_today ??
+            0
+        );
+
+        const limit = Number(
+            data.daily_limit ??
+            data.plan_daily_limit ??
+            data.user_daily_limit ??
+            data.platform_daily_limit ??
+            0
+        );
+
+        const plan =
+            data.plan ||
+            data.plan_name ||
+            (currentUser && (currentUser.plan || currentUser.plan_name)) ||
+            "";
+
+        return { used, limit, plan };
+    }
+
+
+    async function refreshCurrentUser() {
+
+        try {
+
+            const data = await api("/credits");
+
+            if (data && data.user) {
+
+                currentUser = data.user;
+
+                currentPlanId = String(
+                    currentUser.plan ||
+                    currentUser.plan_name ||
+                    "free"
+                ).toLowerCase();
+
+                updateUserInterface();
+            }
+
+        } catch (error) {
+            // Keep the last known user if the refresh fails.
+        }
+    }
+
+
+    async function loadAnalytics() {
+
+        try {
+
+            // Refresh the plan first so the limit always matches it.
+            await refreshCurrentUser();
+
+            const data = await api("/usage");
+
+            const { used, limit, plan } = normalizeUsage(data);
+
+            const unlimited = limit < 0;
+
+            const remaining = unlimited ? "Unlimited" : Math.max(limit - used, 0);
+
+            document.getElementById("analyticsToday").textContent = used;
+
+            document.getElementById("analyticsLimit").textContent =
+                unlimited ? "Unlimited" : limit;
+
+            document.getElementById("analyticsRemaining").textContent = remaining;
+
+            const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+
+            document.getElementById("usageFill").style.width = percentage + "%";
+
+            document.getElementById("usageText").textContent =
+                (unlimited
+                    ? `${used} generations used today`
+                    : `${used} of ${limit} generations used today`) +
+                (plan ? ` on the ${plan} plan.` : ".");
+
+        } catch (error) {
+
+            document.getElementById("usageText").textContent = error.message;
+        }
+    }
+
+
+    /* Live refresh while the Analytics tab is open */
+
+    function startAnalyticsRefresh() {
+
+        stopAnalyticsRefresh();
+
+        analyticsTimer = setInterval(() => {
+
+            if (document.hidden || currentPage !== "analytics") {
+                return;
+            }
+
+            loadAnalytics();
+
+        }, 10000);
+    }
+
+
+    function stopAnalyticsRefresh() {
+
+        if (analyticsTimer) {
+            clearInterval(analyticsTimer);
+            analyticsTimer = null;
+        }
+    }
+
+
+    /* =====================================================
+       PLANS (Settings -> Account)
+    ===================================================== */
+
+    function formatPlanPrice(plan) {
+
+        const planData =
+            plan && typeof plan === "object"
+                ? plan
+                : { id: String(plan || "").toLowerCase(), price: 0 };
+
+        const id = String(planData.id || "").toLowerCase();
+
+        const price =
+            id in PLAN_PRICES_KSH
+                ? PLAN_PRICES_KSH[id]
+                : Number(planData.price) || 0;
+
+        return price === 0 ? "KSh 0" : `KSh ${price.toLocaleString()}/month`;
+    }
+
+
+    function renderPlans(plans) {
+
+        const grid = document.getElementById("plansGrid");
+
+        if (!grid) return;
+
+        const list = Array.isArray(plans)
+            ? plans
+            : (plans && Array.isArray(plans.plans)) ? plans.plans : [];
+
+        grid.innerHTML = list.map(plan => {
+
+            const planId = String((plan && (plan.id || plan.slug || plan.name)) || "").toLowerCase();
+            const planName = String((plan && plan.name) || "Plan");
+
+            const isCurrent =
+                planId === currentPlanId ||
+                planName.toLowerCase() === currentPlanId;
+
+            const isFree = planId === "free" || planName.toLowerCase() === "free";
+
+            const buttonDisabled = isCurrent || isFree;
+            const buttonCursor = buttonDisabled ? "default" : "pointer";
+            const buttonBackground = buttonDisabled ? "rgba(255,255,255,0.1)" : "#8c72ff";
+
+            const buttonText = isCurrent
+                ? "Current Plan"
+                : isFree
+                    ? "Free plan"
+                    : `Upgrade to ${escapeHtml(planName)}`;
+
+            const buttonStyle = [
+                "margin-top:16px",
+                "width:100%",
+                "padding:10px",
+                "border:0",
+                "border-radius:10px",
+                "font-weight:700",
+                "cursor:" + buttonCursor,
+                "background:" + buttonBackground,
+                "color:#fff"
+            ].join(";");
+
+            const cardBorder = isCurrent ? "#8c72ff" : "rgba(255,255,255,0.1)";
+
+            const currentBadge = isCurrent
+                ? '<div style="position:absolute;top:12px;right:12px;font-size:11px;font-weight:700;color:#8c72ff;">CURRENT</div>'
+                : "";
+
+            return `
+                <div style="position:relative;padding:20px;border-radius:14px;background:rgba(255,255,255,0.04);border:1px solid ${cardBorder};">
+                    ${currentBadge}
+                    <div style="font-size:15px;font-weight:700;">${escapeHtml(planName)}</div>
+                    <div style="font-size:22px;font-weight:800;margin:8px 0 2px;">${escapeHtml(formatPlanPrice(plan))}</div>
+                    <div style="font-size:13px;opacity:.7;">${Number(plan && plan.credits) || 0} credits</div>
+                    <button
+                        type="button"
+                        ${buttonDisabled ? "disabled" : ""}
+                        data-plan-id="${escapeAttribute(planId || planName)}"
+                        onclick="upgradePlan(this.dataset.planId)"
+                        style="${buttonStyle}">
+                        ${buttonText}
+                    </button>
+                </div>
+            `;
+
+        }).join("");
+    }
+
+
+    async function loadPlans() {
+
+        if (!document.getElementById("plansGrid")) return;
+
+        try {
+
+            if (currentUser) {
+                currentPlanId = String(
+                    currentUser.plan || currentUser.plan_name || "free"
+                ).toLowerCase();
+            }
+
+            const response = await fetch(
+                `${planApiBase()}/plans`,
+                { credentials: "include" }
+            );
+
+            const data = await readJsonSafe(response);
+
+            renderPlans(data && data.plans ? data.plans : data);
+
+        } catch (error) {
+            console.error(error);
+        }
+    }
+
+
+    /* =====================================================
+       PAYSTACK
+       The plan is only activated by the backend after it
+       verifies the payment. The browser just asks the
+       backend to verify and then refreshes the UI.
+    ===================================================== */
+
+    async function verifyPaystackPayment(reference) {
+
+        const response = await fetch(
+            `${planApiBase()}/payments/paystack/verify/${encodeURIComponent(reference)}`,
+            {
+                method: "GET",
+                credentials: "include"
+            }
+        );
+
+        const data = await readJsonSafe(response);
+
+        if (!response.ok) {
+            throw new Error(
+                (typeof data.detail === "string"
+                    ? data.detail
+                    : data.detail && data.detail.message) ||
+                "Payment verification failed."
+            );
+        }
+
+        if (data.status === "paid") {
+
+            if (data.user) {
+
+                currentUser = data.user;
+
+                currentPlanId = String(
+                    data.user.plan_name ||
+                    data.user.plan ||
+                    "free"
+                ).toLowerCase();
+
+                updateUserInterface();
+            }
+
+            alert("Payment successful! Your subscription has been activated.");
+
+            await loadPlans();
+            await loadDashboard();
+
+        } else {
+
+            alert(
+                data.message ||
+                "Your payment has not been completed yet."
+            );
+        }
+    }
+
+
+    async function upgradePlan(planId) {
+
+        const plan = String(planId || "").toLowerCase().trim();
+
+        if (!["starter", "pro", "mega"].includes(plan)) {
+            alert("Please select a valid paid plan.");
+            return;
+        }
+
+        try {
+
+            const response = await fetch(
+                `${planApiBase()}/payments/paystack/initialize`,
+                {
+                    method: "POST",
+                    credentials: "include",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ plan })
+                }
+            );
+
+            const data = await readJsonSafe(response);
+
+            if (!response.ok) {
+                throw new Error(
+                    (typeof data.detail === "string"
+                        ? data.detail
+                        : data.detail && data.detail.message) ||
+                    `Payment initialization failed (${response.status})`
+                );
+            }
+
+            const accessCode = data && (data.access_code || data.accessCode);
+
+            if (!accessCode) {
+                throw new Error("Paystack did not return a payment access code.");
+            }
+
+            if (typeof PaystackPop === "undefined") {
+                throw new Error("Paystack checkout could not be loaded.");
+            }
+
+            // Paystack v2 inline API
+            const popup = new PaystackPop();
+
+            popup.resumeTransaction(accessCode, {
+                onSuccess: async function (transaction) {
+
+                    const reference =
+                        (transaction && (transaction.reference || transaction.trxref)) ||
+                        data.reference ||
+                        data.ref;
+
+                    try {
+                        await verifyPaystackPayment(reference);
+                    } catch (error) {
+                        console.error("Paystack verify error:", error);
+                        alert(
+                            error.message ||
+                            "Unable to verify your payment."
+                        );
+                    }
+                },
+                onCancel: function () {
+                    console.log("Paystack payment modal closed.");
+                }
+            });
+
+        } catch (error) {
+
+            console.error("Paystack payment error:", error);
+
+            alert(error.message || "Unable to start payment.");
+        }
+    }
+
+
+    async function handlePaystackReturn() {
+
+        const params = new URLSearchParams(window.location.search);
+
+        const paymentType = params.get("payment");
+        const reference = params.get("reference");
+
+        if (paymentType !== "paystack" || !reference) {
+            return;
+        }
+
+        try {
+
+            await verifyPaystackPayment(reference);
+
+        } catch (error) {
+
+            console.error("Paystack return error:", error);
+
+            alert(error.message || "Unable to verify your payment.");
+
+        } finally {
+
+            window.history.replaceState(
+                {},
+                document.title,
+                window.location.pathname
+            );
+        }
+    }
+
+
+    /* =====================================================
+       SETTINGS
+    ===================================================== */
+
+    function showSettingsPanel(name, button) {
+
+        document.querySelectorAll(".settings-panel").forEach(panel => {
+            panel.classList.remove("active");
+        });
+
+        document.querySelectorAll(".settings-nav button").forEach(btn => {
+            btn.classList.remove("active");
+        });
+
+        const target = document.getElementById("settings-" + name);
+
+        if (target) target.classList.add("active");
+        if (button) button.classList.add("active");
+
+        if (name === "account") {
+            loadPlans();
+        }
+    }
+
+
+    function getPreferences() {
+
+        const defaults = {
+            duration: "30",
+            ratio: "9:16",
+            voice: "professional",
+            captions: true
+        };
+
+        try {
+
+            const saved = JSON.parse(
+                localStorage.getItem("clipPiratePreferences")
+            );
+
+            return { ...defaults, ...(saved || {}) };
+
+        } catch {
+
+            return defaults;
+        }
+    }
+
+
+    function loadPreferences() {
+
+        const saved = getPreferences();
+
+        document.getElementById("prefDuration").value = saved.duration;
+        document.getElementById("prefRatio").value = saved.ratio;
+        document.getElementById("prefVoice").value = saved.voice;
+        document.getElementById("prefCaptions").checked = saved.captions;
+    }
+
+
+    function savePreferences() {
+
+        const preferences = {
+            duration: document.getElementById("prefDuration").value,
+            ratio: document.getElementById("prefRatio").value,
+            voice: document.getElementById("prefVoice").value,
+            captions: document.getElementById("prefCaptions").checked
+        };
+
+        try {
+            localStorage.setItem(
+                "clipPiratePreferences",
+                JSON.stringify(preferences)
+            );
+        } catch (error) {
+            showToast("Could not save preferences in this browser.");
+            return;
+        }
+
+        showToast("Preferences saved.");
+    }
+
+
+    function loadPreferencesIntoCreateForm() {
+
+        const preferences = getPreferences();
+
+        let template = null;
+
+        try {
+
+            const rawTemplate = localStorage.getItem("clipPirateTemplate");
+
+            if (rawTemplate && rawTemplate.trim().startsWith("{")) {
+                template = JSON.parse(rawTemplate);
+            }
+
+        } catch (error) {
+            template = null;
+        }
+
+        document.getElementById("videoDuration").value = preferences.duration;
+        document.getElementById("videoRatio").value = preferences.ratio;
+        document.getElementById("videoVoice").value = preferences.voice;
+        document.getElementById("videoCaptions").checked = preferences.captions;
+
+        if (template) {
+
+            activeTemplate = template;
+
+            showActiveTemplate();
+
+            // Optional overrides: blank means "keep the user's preference".
+            const applyIfValid = (elementId, value) => {
+
+                if (value === null || value === undefined || value === "") {
+                    return;
+                }
+
+                const select = document.getElementById(elementId);
+
+                const exists = Array.from(select.options).some(
+                    option => option.value === String(value)
+                );
+
+                if (exists) {
+                    select.value = String(value);
+                }
+            };
+
+            applyIfValid("videoDuration", template.duration);
+            applyIfValid("videoRatio", template.ratio);
+            applyIfValid("videoVoice", template.voice);
+
+            const topic = document.getElementById("videoTopic");
+
+            if (!topic.value.trim() && template.prompt) {
+
+                topic.value = template.prompt + " ";
+
+                topic.focus();
+
+                topic.setSelectionRange(topic.value.length, topic.value.length);
+            }
+        }
+
+        // The template applies once, then clears.
+        try {
+            localStorage.removeItem("clipPirateTemplate");
+        } catch (error) {
+            // ignore
+        }
+    }
+
+
+    /* =====================================================
+       SIDEBAR COLLAPSE
+    ===================================================== */
+
+    function applySidebarState(collapsed) {
+
+        document
+            .getElementById("appScreen")
+            .classList.toggle("sidebar-collapsed", collapsed);
+
+        const button = document.getElementById("sidebarToggle");
+
+        if (!button) return;
+
+        const label = collapsed ? "Expand sidebar" : "Collapse sidebar";
+
+        button.innerHTML = collapsed ? "&#8250;" : "&#8249;";
+        button.title = label;
+        button.setAttribute("aria-label", label);
+        button.setAttribute("aria-expanded", String(!collapsed));
+    }
+
+
+    function toggleSidebar() {
+
+        const collapsed = !document
+            .getElementById("appScreen")
+            .classList.contains("sidebar-collapsed");
+
+        applySidebarState(collapsed);
+
+        try {
+            localStorage.setItem(SIDEBAR_STORAGE_KEY, collapsed ? "1" : "0");
+        } catch (error) {
+            // Storage unavailable; the toggle still works for this visit.
+        }
+    }
+
+
+    function initSidebar() {
+
+        let collapsed = false;
+
+        try {
+            collapsed = localStorage.getItem(SIDEBAR_STORAGE_KEY) === "1";
+        } catch (error) {
+            collapsed = false;
+        }
+
+        applySidebarState(collapsed);
+
+        // Hover tooltips so icons stay understandable when collapsed.
+        document.querySelectorAll(".nav-button").forEach(button => {
+
+            const label = button.querySelector(".nav-label");
+
+            if (label) {
+                button.title = label.textContent.trim();
+            }
+        });
+    }
+
+
+    /* =====================================================
+       START APPLICATION
+    ===================================================== */
+
+    document.addEventListener("DOMContentLoaded", async function () {
+
+        initSidebar();
+
+        loadPreferences();
+
+        await checkAuthentication();
+
+        await handlePaystackReturn();
+    });
+
+</script>
+
+</body>
+</html>

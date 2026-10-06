@@ -1,0 +1,114 @@
+static\dashboard.html:28:       SIDEBAR
+static\dashboard.html:31:    .sidebar {
+static\dashboard.html:809:        .sidebar {
+static\dashboard.html:857:    <!-- SIDEBAR -->
+static\dashboard.html:859:    <aside class="sidebar">
+static\dashboard.html:894:                <span>Settings</span>
+static\dashboard.html:926:                    <div id="userPlan"
+static\dashboard.html:928:                        Free plan
+static\dashboard.html:1153:                    Current Plan
+static\dashboard.html:1156:                <div class="stat-value" id="plan">
+static\dashboard.html:1169:        <!-- PLANS -->
+static\dashboard.html:1172:                <div class="panel-title">Choose Your Plan</div>
+static\dashboard.html:1175:            <div id="plansGrid" style="display:grid;grid-template-columns:repeat(4,1fr);gap:18px;"></div>
+static\dashboard.html:1373:function renderPlans(plans, currentPlan) {
+static\dashboard.html:1375:    const grid = document.getElementById("plansGrid");
+static\dashboard.html:1379:    grid.innerHTML = plans.map(plan => {
+static\dashboard.html:1381:        const active = plan.id === currentPlan;
+static\dashboard.html:1388:                    ${plan.name}
+static\dashboard.html:1392:                    ${plan.credits}
+static\dashboard.html:1396:                    Credits · ${plan.price === 0 ? "Free" : "Monthly"}
+static\dashboard.html:1404:                    onclick="upgradePlan('${plan.id}')"
+static\dashboard.html:1406:                    ${active ? "Current Plan" : `Upgrade to ${plan.name}`}
+static\dashboard.html:1415:async function upgradePlan(plan) {
+static\dashboard.html:1420:            `${API_BASE}/subscription/dev-upgrade/${encodeURIComponent(plan)}`,
+static\dashboard.html:1431:                data.detail || `Upgrade failed (${response.status})`
+static\dashboard.html:1436:            `Plan changed to ${data.user.plan_name}. Credits: ${data.user.credits}`
+static\dashboard.html:1444:        alert(error.message || "Unable to change plan.");
+static\dashboard.html:1460:            plansData
+static\dashboard.html:1469:            api("/plans")
+static\dashboard.html:1498:            const plan =
+static\dashboard.html:1499:                user.plan ||
+static\dashboard.html:1503:                "userPlan"
+static\dashboard.html:1505:                `${plan.charAt(0).toUpperCase() + plan.slice(1)} plan`;
+static\dashboard.html:1508:                "plan"
+static\dashboard.html:1510:                plan.charAt(0).toUpperCase() +
+static\dashboard.html:1511:                plan.slice(1);
+static\dashboard.html:1517:           PLANS
+static\dashboard.html:1520:        renderPlans(
+static\dashboard.html:1521:            plansData.plans || [],
+static\dashboard.html:1522:            user?.plan || "free"
+static\dashboard.html:1594:           PLANS
+static\index.html:304:        .sidebar {
+static\index.html:321:        .sidebar-logo {
+static\index.html:327:        .sidebar-logo span {
+static\index.html:368:        .sidebar-bottom {
+static\index.html:850:           SETTINGS
+static\index.html:853:        .settings-layout {
+static\index.html:859:        .settings-nav {
+static\index.html:867:        .settings-nav button {
+static\index.html:878:        .settings-nav button:hover,
+static\index.html:879:        .settings-nav button.active {
+static\index.html:884:        .settings-panel {
+static\index.html:888:        .settings-panel.active {
+static\index.html:921:        .save-settings {
+static\index.html:975:            .settings-layout {
+static\index.html:979:            .settings-nav {
+static\index.html:984:            .settings-nav button {
+static\index.html:990:            .sidebar {
+static\index.html:995:            .sidebar-logo {
+static\index.html:1000:            .sidebar-logo span {
+static\index.html:1250:    <!-- SIDEBAR -->
+static\index.html:1252:    <aside class="sidebar">
+static\index.html:1254:        <div class="sidebar-logo">
+static\index.html:1308:                data-page="settings"
+static\index.html:1309:                onclick="navigate('settings')"
+static\index.html:1312:                <span class="nav-label">Settings</span>
+static\index.html:1318:        <div class="sidebar-bottom">
+static\index.html:1324:                    id="sidebarUserName"
+static\index.html:1331:                    id="sidebarUserEmail"
+static\index.html:1454:                            Current Plan
+static\index.html:1459:                            id="dashboardPlan"
+static\index.html:1592:                            Video settings
+static\index.html:2086:                 SETTINGS PAGE
+static\index.html:2090:                id="page-settings"
+static\index.html:2099:                            Settings
+static\index.html:2111:                <div class="settings-layout">
+static\index.html:2113:                    <div class="settings-nav">
+static\index.html:2117:                            onclick="showSettingsPanel('profile', this)"
+static\index.html:2123:                            onclick="showSettingsPanel('preferences', this)"
+static\index.html:2129:                            onclick="showSettingsPanel('account', this)"
+static\index.html:2135:                            onclick="showSettingsPanel('security', this)"
+static\index.html:2148:                            id="settings-profile"
+static\index.html:2149:                            class="settings-panel active"
+static\index.html:2177:                                    id="settingsName"
+static\index.html:2201:                                    id="settingsEmail"
+static\index.html:2214:                            id="settings-preferences"
+static\index.html:2215:                            class="settings-panel"
+static\index.html:2377:                                class="create-btn save-settings"
+static\index.html:2389:                            id="settings-account"
+static\index.html:2390:                            class="settings-panel"
+static\index.html:2398:                                Information about your current ClipPirate plan.
+static\index.html:2407:                                        Current Plan
+static\index.html:2411:                                        Your current subscription plan.
+static\index.html:2418:                                    id="accountPlan"
+static\index.html:2456:                            id="settings-security"
+static\index.html:2457:                            class="settings-panel"
+static\index.html:2740:        document.getElementById("sidebarUserName").textContent =
+static\index.html:2743:        document.getElementById("sidebarUserEmail").textContent =
+static\index.html:2746:        document.getElementById("settingsName").textContent =
+static\index.html:2749:        document.getElementById("settingsEmail").textContent =
+static\index.html:2766:        const plan =
+static\index.html:2767:            currentUser.plan ||
+static\index.html:2768:            currentUser.plan_name ||
+static\index.html:2771:        document.getElementById("dashboardPlan").textContent =
+static\index.html:2772:            plan;
+static\index.html:2774:        document.getElementById("accountPlan").textContent =
+static\index.html:2775:            plan;
+static\index.html:2992:            settings: "Settings"
+static\index.html:3012:        if (page === "settings") {
+static\index.html:3679:       SETTINGS
+static\index.html:3682:    function showSettingsPanel(
+static\index.html:3688:            .querySelectorAll(".settings-panel")
+static\index.html:3695:            .querySelectorAll(".settings-nav button")
+static\index.html:3703:                "settings-" + panel

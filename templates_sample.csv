@@ -1,0 +1,6 @@
+id,name,icon,description,prompt,duration
+history-mysteries,History Mysteries,🏛️,Unsolved puzzles and strange events from the past.,Unsolved mysteries about,45
+tech-news,Tech News Flash,📱,Quick explainers on the latest technology.,The latest in technology:,30
+science-simplified,Science Simplified,🔬,Big science ideas explained in under a minute.,Explain in simple terms:,30
+money-tips,Money Tips,💰,Practical personal finance tips.,Simple money tips about,30
+draft-idea,Draft Idea,📝,Hidden until the active column is set to TRUE.,Draft prompt,30

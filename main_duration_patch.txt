@@ -1,0 +1,7 @@
+Update main.py pipeline:
+1) VideoRequest should include duration: int = 30, aspect_ratio: str = "4:3", voice: str = "professional", captions: bool = True.
+2) process_video_job(job_id, topic, duration, aspect_ratio, voice, captions).
+3) generate_script(topic, duration).
+4) create_dialogue_voice(dialogue, audio_file, voice_profile=voice, target_duration=duration).
+5) build_video(audio_file, video_file, topic, timeline, target_duration=duration, aspect_ratio=aspect_ratio, captions=captions).
+6) Validate duration in {30,45,60} and aspect_ratio before enqueueing.

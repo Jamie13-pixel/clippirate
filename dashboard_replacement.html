@@ -1,0 +1,2012 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>Dashboard — Clip Pirate .ai</title>
+
+<style>
+    * {
+        box-sizing: border-box;
+    }
+
+    body {
+        margin: 0;
+        font-family: Inter, -apple-system, BlinkMacSystemFont,
+                     "Segoe UI", Roboto, Arial, sans-serif;
+        background: #0b0d12;
+        color: #f5f7fb;
+    }
+
+    .app {
+        display: flex;
+        min-height: 100vh;
+    }
+
+    /* =========================
+       SIDEBAR
+    ========================= */
+
+    .sidebar {
+        width: 250px;
+        background: #11141b;
+        border-right: 1px solid #242833;
+        padding: 24px 16px;
+        position: fixed;
+        left: 0;
+        top: 0;
+        bottom: 0;
+    }
+
+    .logo {
+        font-size: 21px;
+        font-weight: 800;
+        padding: 0 12px 30px;
+        letter-spacing: -0.5px;
+    }
+
+    .logo span {
+        color: #7c5cff;
+    }
+
+    .nav {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+
+    .nav a {
+        text-decoration: none;
+        color: #9da4b3;
+        padding: 12px 14px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        font-size: 14px;
+        transition: 0.2s;
+    }
+
+    .nav a:hover {
+        background: #1a1e28;
+        color: #fff;
+    }
+
+    .nav a.active {
+        background: #211b3d;
+        color: #fff;
+    }
+
+    .icon {
+        width: 20px;
+        text-align: center;
+        font-size: 16px;
+    }
+
+    /* =========================
+       MAIN
+    ========================= */
+
+    .main {
+        margin-left: 250px;
+        width: calc(100% - 250px);
+        padding: 32px 38px;
+    }
+
+    .topbar {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 32px;
+    }
+
+    .welcome h1 {
+        margin: 0;
+        font-size: 28px;
+        letter-spacing: -0.7px;
+    }
+
+    .welcome p {
+        margin: 7px 0 0;
+        color: #8f97a8;
+        font-size: 14px;
+    }
+
+    .user {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: #7c5cff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-weight: 700;
+    }
+
+    /* =========================
+       STAT CARDS
+    ========================= */
+
+    .stats {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 18px;
+        margin-bottom: 28px;
+    }
+
+    .stat-card {
+        background: #131720;
+        border: 1px solid #242833;
+        border-radius: 14px;
+        padding: 20px;
+    }
+
+    .stat-title {
+        color: #8f97a8;
+        font-size: 13px;
+        margin-bottom: 12px;
+    }
+
+    .stat-value {
+        font-size: 27px;
+        font-weight: 750;
+    }
+
+    .stat-description {
+        color: #737b8c;
+        font-size: 12px;
+        margin-top: 8px;
+    }
+
+    /* =========================
+       CONTENT GRID
+    ========================= */
+
+    .content-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 22px;
+    }
+
+    .panel {
+        background: #131720;
+        border: 1px solid #242833;
+        border-radius: 14px;
+        padding: 22px;
+    }
+
+    .panel-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .panel-title {
+        font-size: 16px;
+        font-weight: 700;
+    }
+
+    .panel-link {
+        color: #8c72ff;
+        font-size: 13px;
+        text-decoration: none;
+    }
+
+    /* =========================
+       PROJECTS
+    ========================= */
+
+    .project {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 14px 0;
+        border-bottom: 1px solid #222630;
+    }
+
+    .project:last-child {
+        border-bottom: none;
+    }
+
+    .project-info {
+        min-width: 0;
+    }
+
+    .project-title {
+        font-size: 14px;
+        font-weight: 600;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 350px;
+    }
+
+    .project-meta {
+        color: #737b8c;
+        font-size: 12px;
+        margin-top: 5px;
+    }
+
+    .status {
+        padding: 5px 9px;
+        border-radius: 20px;
+        font-size: 11px;
+        font-weight: 600;
+        text-transform: capitalize;
+    }
+
+    .status.completed {
+        background: #123522;
+        color: #56d88b;
+    }
+
+    .status.processing {
+        background: #302914;
+        color: #f2c85b;
+    }
+
+    .status.failed {
+        background: #35191d;
+        color: #ff727d;
+    }
+
+    .status.pending {
+        background: #202638;
+        color: #9ba9d8;
+    }
+
+    .empty {
+        color: #737b8c;
+        font-size: 14px;
+        padding: 25px 0;
+        text-align: center;
+    }
+
+    /* =========================
+       QUICK ACTIONS
+    ========================= */
+
+    .actions {
+        display: grid;
+        gap: 12px;
+    }
+
+    .action {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        text-decoration: none;
+        color: #fff;
+        background: #191d27;
+        border: 1px solid #282d38;
+        padding: 15px;
+        border-radius: 11px;
+        transition: 0.2s;
+    }
+
+    .action:hover {
+        border-color: #7c5cff;
+        transform: translateY(-1px);
+    }
+
+    .action-icon {
+        width: 38px;
+        height: 38px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9px;
+        background: #251f43;
+        font-size: 17px;
+    }
+
+    .action-title {
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    .action-description {
+        color: #737b8c;
+        font-size: 12px;
+        margin-top: 3px;
+    }
+
+    /* =========================
+       USAGE
+    ========================= */
+
+    .usage-bar {
+        height: 9px;
+        background: #242833;
+        border-radius: 20px;
+        overflow: hidden;
+        margin-top: 12px;
+    }
+
+    .usage-fill {
+        height: 100%;
+        width: 0%;
+        background: #7c5cff;
+        border-radius: 20px;
+        transition: width 0.5s;
+    }
+
+    .usage-text {
+        display: flex;
+        justify-content: space-between;
+        color: #858d9e;
+        font-size: 12px;
+        margin-top: 9px;
+    }
+
+    /* =========================
+       LOADING
+    ========================= */
+
+    .loading {
+        color: #737b8c;
+        font-size: 13px;
+    }
+
+
+    /* =========================
+       VIDEO GENERATOR
+    ========================= */
+
+    .generator-panel {
+        margin-bottom: 22px;
+    }
+
+    .generator-grid {
+        display: grid;
+        grid-template-columns: 1.7fr 1fr 1fr;
+        gap: 14px;
+    }
+
+    .field {
+        display: flex;
+        flex-direction: column;
+        gap: 7px;
+    }
+
+    .field.full {
+        grid-column: 1 / -1;
+    }
+
+    .field label {
+        color: #aeb5c4;
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    .field input,
+    .field select {
+        width: 100%;
+        border: 1px solid #2a2f3b;
+        background: #0f1219;
+        color: #f5f7fb;
+        border-radius: 10px;
+        padding: 12px 13px;
+        outline: none;
+        font: inherit;
+        font-size: 14px;
+    }
+
+    .field input:focus,
+    .field select:focus {
+        border-color: #7c5cff;
+        box-shadow: 0 0 0 3px rgba(124,92,255,.12);
+    }
+
+    .generator-options {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+    }
+
+    .choice {
+        position: relative;
+    }
+
+    .choice input {
+        position: absolute;
+        opacity: 0;
+        pointer-events: none;
+    }
+
+    .choice label {
+        display: block;
+        text-align: center;
+        cursor: pointer;
+        border: 1px solid #2a2f3b;
+        background: #0f1219;
+        border-radius: 10px;
+        padding: 11px 8px;
+        color: #aeb5c4;
+        font-size: 13px;
+        transition: .18s;
+    }
+
+    .choice input:checked + label {
+        border-color: #7c5cff;
+        background: #211b3d;
+        color: #fff;
+    }
+
+    .caption-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border: 1px solid #2a2f3b;
+        background: #0f1219;
+        border-radius: 10px;
+        padding: 11px 13px;
+        min-height: 45px;
+    }
+
+    .caption-row span {
+        font-size: 13px;
+        color: #d8dce5;
+    }
+
+    .switch {
+        position: relative;
+        width: 42px;
+        height: 23px;
+    }
+
+    .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .slider {
+        position: absolute;
+        inset: 0;
+        cursor: pointer;
+        background: #343a47;
+        border-radius: 30px;
+        transition: .2s;
+    }
+
+    .slider:before {
+        content: "";
+        position: absolute;
+        width: 17px;
+        height: 17px;
+        left: 3px;
+        top: 3px;
+        background: white;
+        border-radius: 50%;
+        transition: .2s;
+    }
+
+    .switch input:checked + .slider {
+        background: #7c5cff;
+    }
+
+    .switch input:checked + .slider:before {
+        transform: translateX(19px);
+    }
+
+    .generate-row {
+        display: flex;
+        align-items: center;
+        gap: 14px;
+        margin-top: 17px;
+    }
+
+    .generate-btn {
+        border: 0;
+        border-radius: 10px;
+        background: #7c5cff;
+        color: white;
+        font-weight: 700;
+        padding: 12px 19px;
+        cursor: pointer;
+        font-size: 14px;
+        transition: .2s;
+    }
+
+    .generate-btn:hover:not(:disabled) {
+        background: #8d72ff;
+        transform: translateY(-1px);
+    }
+
+    .generate-btn:disabled {
+        opacity: .55;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .generate-hint {
+        color: #737b8c;
+        font-size: 12px;
+    }
+
+    .generation-status {
+        display: none;
+        margin-top: 17px;
+        padding: 14px;
+        border-radius: 11px;
+        border: 1px solid #2a2f3b;
+        background: #0f1219;
+    }
+
+    .generation-status.show {
+        display: block;
+    }
+
+    .generation-status.processing {
+        border-color: #4d411d;
+    }
+
+    .generation-status.success {
+        border-color: #1d5a39;
+    }
+
+    .generation-status.error {
+        border-color: #633039;
+    }
+
+    .status-line {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-size: 13px;
+        font-weight: 600;
+    }
+
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid #3b4050;
+        border-top-color: #7c5cff;
+        border-radius: 50%;
+        animation: spin .8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .generation-message {
+        color: #858d9e;
+        font-size: 12px;
+        margin-top: 7px;
+        line-height: 1.5;
+    }
+
+    .video-result {
+        display: none;
+        margin-top: 17px;
+    }
+
+    .video-result.show {
+        display: block;
+    }
+
+    .video-result video {
+        display: block;
+        width: 100%;
+        max-height: 520px;
+        background: #050609;
+        border: 1px solid #292e3a;
+        border-radius: 11px;
+    }
+
+    .result-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 12px;
+    }
+
+    .result-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        text-decoration: none;
+        border: 1px solid #303543;
+        border-radius: 9px;
+        padding: 9px 13px;
+        color: #fff;
+        background: #191d27;
+        font-size: 13px;
+        cursor: pointer;
+    }
+
+    .result-button.primary {
+        background: #7c5cff;
+        border-color: #7c5cff;
+    }
+
+    .result-button:hover {
+        border-color: #7c5cff;
+    }
+
+    .error-box {
+        color: #ff9aa3;
+        font-size: 12px;
+        line-height: 1.5;
+        margin-top: 7px;
+        word-break: break-word;
+    }
+
+    .progress-track {
+        height: 6px;
+        margin-top: 12px;
+        background: #242833;
+        border-radius: 20px;
+        overflow: hidden;
+    }
+
+    .progress-indeterminate {
+        width: 35%;
+        height: 100%;
+        background: #7c5cff;
+        border-radius: 20px;
+        animation: progressMove 1.3s ease-in-out infinite;
+    }
+
+    @keyframes progressMove {
+        0% { transform: translateX(-120%); }
+        50% { transform: translateX(170%); }
+        100% { transform: translateX(320%); }
+    }
+
+    .script-preview {
+        display: none;
+        margin-top: 14px;
+        padding: 13px;
+        border: 1px solid #282d38;
+        background: #11141b;
+        border-radius: 10px;
+    }
+
+    .script-preview.show {
+        display: block;
+    }
+
+    .script-preview-title {
+        font-size: 12px;
+        color: #aeb5c4;
+        font-weight: 700;
+        margin-bottom: 7px;
+    }
+
+    .script-preview-text {
+        color: #858d9e;
+        font-size: 12px;
+        line-height: 1.55;
+        white-space: pre-wrap;
+    }
+
+    @media (max-width: 900px) {
+        .generator-grid {
+            grid-template-columns: 1fr 1fr;
+        }
+
+        .field.full {
+            grid-column: 1 / -1;
+        }
+    }
+
+    @media (max-width: 560px) {
+        .generator-grid {
+            grid-template-columns: 1fr;
+        }
+
+        .field.full {
+            grid-column: auto;
+        }
+
+        .generator-options {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .generate-row {
+            align-items: stretch;
+            flex-direction: column;
+        }
+
+        .generate-btn {
+            width: 100%;
+        }
+    }
+
+    /* =========================
+       MOBILE
+    ========================= */
+
+    @media (max-width: 1000px) {
+
+        .stats {
+            grid-template-columns: repeat(2, 1fr);
+        }
+
+        .content-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    @media (max-width: 700px) {
+
+        .sidebar {
+            width: 70px;
+            padding: 20px 8px;
+        }
+
+        .logo {
+            font-size: 0;
+            text-align: center;
+        }
+
+        .logo span {
+            font-size: 20px;
+        }
+
+        .nav a {
+            justify-content: center;
+            padding: 13px 5px;
+        }
+
+        .nav a span:not(.icon) {
+            display: none;
+        }
+
+        .main {
+            margin-left: 70px;
+            width: calc(100% - 70px);
+            padding: 22px 16px;
+        }
+
+        .stats {
+            grid-template-columns: 1fr;
+        }
+
+        .topbar {
+            align-items: flex-start;
+        }
+
+        .welcome h1 {
+            font-size: 22px;
+        }
+    }
+</style>
+</head>
+
+<body>
+
+<div class="app">
+
+    <!-- SIDEBAR -->
+
+    <aside class="sidebar">
+
+        <div class="logo">
+            Clip Pirate <span>.ai</span>
+        </div>
+
+        <nav class="nav">
+
+            <a href="/app/dashboard.html" class="active">
+                <span class="icon">⌂</span>
+                <span>Dashboard</span>
+            </a>
+
+            <a href="/app/index.html">
+                <span class="icon">▣</span>
+                <span>Projects</span>
+            </a>
+
+            <a href="#generator" onclick="scrollToGenerator(event)">
+                <span class="icon">＋</span>
+                <span>Create Video</span>
+            </a>
+
+            <a href="/app/index.html">
+                <span class="icon">◇</span>
+                <span>Templates</span>
+            </a>
+
+            <a href="/app/index.html">
+                <span class="icon">◒</span>
+                <span>Analytics</span>
+            </a>
+
+            <a href="/app/index.html">
+                <span class="icon">⚙</span>
+                <span>Settings</span>
+            </a>
+
+        </nav>
+
+    </aside>
+
+
+    <!-- MAIN CONTENT -->
+
+    <main class="main">
+
+        <div class="topbar">
+
+            <div class="welcome">
+
+                <h1>Dashboard</h1>
+
+                <p>
+                    Welcome back. Here's what's happening with your videos.
+                </p>
+
+            </div>
+
+            <div class="user">
+
+                <div class="avatar" id="avatar">
+                    ?
+                </div>
+
+                <div>
+                    <div id="userName">Loading...</div>
+                    <div id="userPlan"
+                         style="color:#737b8c;font-size:12px;">
+                        Free plan
+                    </div>
+                </div>
+
+            </div>
+
+        </div>
+
+
+
+        <!-- VIDEO GENERATOR -->
+
+        <section class="panel generator-panel" id="generator">
+
+            <div class="panel-header">
+                <div>
+                    <div class="panel-title">Create a Video</div>
+                    <div class="generation-message" style="margin-top:4px;">
+                        Turn your idea into a narrated video with captions.
+                    </div>
+                </div>
+            </div>
+
+            <form id="generatorForm">
+
+                <div class="generator-grid">
+
+                    <div class="field full">
+                        <label for="topic">Video topic</label>
+                        <input
+                            id="topic"
+                            name="topic"
+                            type="text"
+                            maxlength="300"
+                            placeholder="e.g. A surprising fact about Kenya"
+                            required
+                        >
+                    </div>
+
+                    <div class="field">
+                        <label>Duration</label>
+                        <div class="generator-options">
+                            <div class="choice">
+                                <input id="duration30" type="radio"
+                                       name="duration" value="30" checked>
+                                <label for="duration30">30 sec</label>
+                            </div>
+                            <div class="choice">
+                                <input id="duration45" type="radio"
+                                       name="duration" value="45">
+                                <label for="duration45">45 sec</label>
+                            </div>
+                            <div class="choice">
+                                <input id="duration60" type="radio"
+                                       name="duration" value="60">
+                                <label for="duration60">60 sec</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="field">
+                        <label for="aspectRatio">Aspect ratio</label>
+                        <select id="aspectRatio" name="aspect_ratio">
+                            <option value="9:16">9:16 — Short/Reel</option>
+                            <option value="16:9">16:9 — YouTube</option>
+                            <option value="1:1">1:1 — Square</option>
+                            <option value="4:3">4:3 — Classic</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label for="voice">Voice</label>
+                        <select id="voice" name="voice">
+                            <option value="professional">Professional</option>
+                            <option value="energetic">Energetic</option>
+                            <option value="calm">Calm</option>
+                        </select>
+                    </div>
+
+                    <div class="field">
+                        <label>Captions</label>
+                        <div class="caption-row">
+                            <span>Include captions</span>
+                            <label class="switch">
+                                <input id="captions" type="checkbox" checked>
+                                <span class="slider"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="generate-row">
+
+                    <button
+                        id="generateButton"
+                        class="generate-btn"
+                        type="submit"
+                    >
+                        Generate Video
+                    </button>
+
+                    <div class="generate-hint" id="generateHint">
+                        30-second videos use 1 credit.
+                    </div>
+
+                </div>
+
+            </form>
+
+            <div id="generationStatus" class="generation-status">
+
+                <div class="status-line">
+                    <div id="statusSpinner" class="spinner"></div>
+                    <span id="statusTitle">Preparing...</span>
+                </div>
+
+                <div id="statusMessage" class="generation-message">
+                    Your video is being generated.
+                </div>
+
+                <div id="progressTrack" class="progress-track">
+                    <div class="progress-indeterminate"></div>
+                </div>
+
+                <div id="generationError" class="error-box"></div>
+
+            </div>
+
+            <div id="scriptPreview" class="script-preview">
+                <div class="script-preview-title">Generated script</div>
+                <div id="scriptPreviewText" class="script-preview-text"></div>
+            </div>
+
+            <div id="videoResult" class="video-result">
+
+                <video
+                    id="resultVideo"
+                    controls
+                    playsinline
+                ></video>
+
+                <div class="result-actions">
+
+                    <a
+                        id="downloadVideo"
+                        class="result-button primary"
+                        href="#"
+                        download
+                    >
+                        Download Video
+                    </a>
+
+                    <button
+                        id="newVideoButton"
+                        class="result-button"
+                        type="button"
+                    >
+                        Create Another
+                    </button>
+
+                </div>
+
+            </div>
+
+        </section>
+
+        <!-- STATISTICS -->
+
+        <section class="stats">
+
+            <div class="stat-card">
+
+                <div class="stat-title">
+                    Available Credits
+                </div>
+
+                <div class="stat-value" id="credits">
+                    —
+                </div>
+
+                <div class="stat-description">
+                    Credits remaining
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-title">
+                    Videos Generated Today
+                </div>
+
+                <div class="stat-value" id="todayUsage">
+                    —
+                </div>
+
+                <div class="stat-description">
+                    Platform usage today
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-title">
+                    Total Projects
+                </div>
+
+                <div class="stat-value" id="projectCount">
+                    —
+                </div>
+
+                <div class="stat-description">
+                    Your video projects
+                </div>
+
+            </div>
+
+
+            <div class="stat-card">
+
+                <div class="stat-title">
+                    Current Plan
+                </div>
+
+                <div class="stat-value" id="plan">
+                    —
+                </div>
+
+                <div class="stat-description">
+                    Your subscription
+                </div>
+
+            </div>
+
+        </section>
+
+
+        <!-- MAIN DASHBOARD CONTENT -->
+
+        <section class="content-grid">
+
+
+            <!-- RECENT PROJECTS -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div class="panel-title">
+                        Recent Projects
+                    </div>
+
+                    <a href="/app/index.html"
+                       class="panel-link">
+                        View all
+                    </a>
+
+                </div>
+
+                <div id="projects">
+
+                    <div class="loading">
+                        Loading projects...
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- RIGHT COLUMN -->
+
+            <div>
+
+
+                <!-- QUICK ACTIONS -->
+
+                <div class="panel">
+
+                    <div class="panel-header">
+
+                        <div class="panel-title">
+                            Quick Actions
+                        </div>
+
+                    </div>
+
+                    <div class="actions">
+
+                        <a class="action"
+                           href="#generator"
+                           onclick="scrollToGenerator(event)">
+
+                            <div class="action-icon">
+                                ✦
+                            </div>
+
+                            <div>
+
+                                <div class="action-title">
+                                    Create Video
+                                </div>
+
+                                <div class="action-description">
+                                    Turn an idea into a video
+                                </div>
+
+                            </div>
+
+                        </a>
+
+
+                        <a class="action"
+                           href="/app/index.html">
+
+                            <div class="action-icon">
+                                ◇
+                            </div>
+
+                            <div>
+
+                                <div class="action-title">
+                                    Browse Templates
+                                </div>
+
+                                <div class="action-description">
+                                    Start with a ready-made format
+                                </div>
+
+                            </div>
+
+                        </a>
+
+                    </div>
+
+                </div>
+
+
+                <!-- CREDIT USAGE -->
+
+                <div class="panel"
+                     style="margin-top:22px;">
+
+                    <div class="panel-header">
+
+                        <div class="panel-title">
+                            Credit Usage
+                        </div>
+
+                    </div>
+
+                    <div id="creditUsageText">
+                        Loading...
+                    </div>
+
+                    <div class="usage-bar">
+
+                        <div class="usage-fill"
+                             id="usageFill">
+                        </div>
+
+                    </div>
+
+                    <div class="usage-text">
+
+                        <span id="usedCredits">
+                            —
+                        </span>
+
+                        <span id="totalCredits">
+                            —
+                        </span>
+
+                    </div>
+
+                </div>
+
+
+            </div>
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<script>
+
+const API_BASE = window.location.origin;
+
+
+/* ==========================================
+   API HELPER
+========================================== */
+
+async function api(url) {
+
+    const response = await fetch(
+        `${API_BASE}${url}`,
+        {
+            credentials: "include"
+        }
+    );
+
+    if (!response.ok) {
+
+        let message = `Request failed (${response.status})`;
+
+        try {
+
+            const data = await response.json();
+
+            message =
+                data.detail ||
+                data.error ||
+                message;
+
+        } catch (_) {}
+
+        throw new Error(message);
+    }
+
+    return response.json();
+}
+
+
+/* ==========================================
+   LOAD DASHBOARD
+========================================== */
+
+async function loadDashboard() {
+
+    try {
+
+        const [
+            creditsData,
+            usageData,
+            projectsData,
+            plansData
+        ] = await Promise.all([
+
+            api("/credits"),
+
+            api("/usage"),
+
+            api("/projects"),
+
+            api("/plans")
+
+        ]);
+
+
+        /* ----------------------------------
+           USER
+        ---------------------------------- */
+
+        const user =
+            creditsData.user ||
+            usageData.user;
+
+        if (user) {
+
+            const name =
+                user.name ||
+                user.email ||
+                "User";
+
+            document.getElementById(
+                "userName"
+            ).textContent = name;
+
+            document.getElementById(
+                "avatar"
+            ).textContent =
+                name.charAt(0).toUpperCase();
+
+            const plan =
+                user.plan ||
+                "free";
+
+            document.getElementById(
+                "userPlan"
+            ).textContent =
+                `${plan.charAt(0).toUpperCase() + plan.slice(1)} plan`;
+
+            document.getElementById(
+                "plan"
+            ).textContent =
+                plan.charAt(0).toUpperCase() +
+                plan.slice(1);
+
+        }
+
+
+        /* ----------------------------------
+           CREDITS
+        ---------------------------------- */
+
+        const creditUser =
+            creditsData.user;
+
+        const credits =
+            creditUser?.credits ??
+            creditUser?.remaining_credits ??
+            0;
+
+        document.getElementById(
+            "credits"
+        ).textContent = credits;
+
+
+        /* ----------------------------------
+           USAGE
+        ---------------------------------- */
+
+        const used =
+            usageData.platform_used_today ??
+            0;
+
+        const limit =
+            usageData.platform_daily_limit ??
+            0;
+
+        document.getElementById(
+            "todayUsage"
+        ).textContent =
+            `${used}`;
+
+        document.getElementById(
+            "usedCredits"
+        ).textContent =
+            `${used} used`;
+
+        document.getElementById(
+            "totalCredits"
+        ).textContent =
+            `${limit} daily limit`;
+
+        let percentage = 0;
+
+        if (limit > 0) {
+
+            percentage =
+                Math.min(
+                    100,
+                    (used / limit) * 100
+                );
+
+        }
+
+        document.getElementById(
+            "usageFill"
+        ).style.width =
+            `${percentage}%`;
+
+        document.getElementById(
+            "creditUsageText"
+        ).textContent =
+            `${used} of ${limit} daily generations used`;
+
+
+        /* ----------------------------------
+           PROJECTS
+        ---------------------------------- */
+
+        const projects =
+            projectsData.projects || [];
+
+        document.getElementById(
+            "projectCount"
+        ).textContent =
+            projects.length;
+
+
+        renderProjects(projects);
+
+
+    } catch (error) {
+
+        console.error(
+            "Dashboard error:",
+            error
+        );
+
+        document.getElementById(
+            "projects"
+        ).innerHTML = `
+            <div class="empty">
+                Unable to load dashboard data.
+                <br><br>
+                ${escapeHtml(error.message)}
+            </div>
+        `;
+
+    }
+
+}
+
+
+/* ==========================================
+   RENDER PROJECTS
+========================================== */
+
+function renderProjects(projects) {
+
+    const container =
+        document.getElementById(
+            "projects"
+        );
+
+    if (!projects.length) {
+
+        container.innerHTML = `
+            <div class="empty">
+                You haven't created any videos yet.
+                <br><br>
+                Create your first video to see it here.
+            </div>
+        `;
+
+        return;
+    }
+
+
+    const recent =
+        projects
+            .slice()
+            .reverse()
+            .slice(0, 6);
+
+
+    container.innerHTML =
+        recent.map(project => {
+
+            const title =
+                project.topic ||
+                project.name ||
+                "Untitled project";
+
+            const status =
+                project.status ||
+                "pending";
+
+            const duration =
+                project.duration
+                ? `${project.duration}s`
+                : "";
+
+            return `
+
+                <div class="project">
+
+                    <div class="project-info">
+
+                        <div class="project-title">
+                            ${escapeHtml(title)}
+                        </div>
+
+                        <div class="project-meta">
+                            ${escapeHtml(status)}
+                            ${duration ? " • " + duration : ""}
+                        </div>
+
+                    </div>
+
+                    <div class="status ${escapeHtml(status)}">
+                        ${escapeHtml(status)}
+                    </div>
+
+                </div>
+
+            `;
+
+        }).join("");
+
+}
+
+
+/* ==========================================
+   ESCAPE HTML
+========================================== */
+
+function escapeHtml(value) {
+
+    return String(value)
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#039;");
+
+}
+
+
+
+/* ==========================================
+   VIDEO GENERATION WORKFLOW
+========================================== */
+
+let activeJobId = null;
+let pollTimer = null;
+let generationInProgress = false;
+
+const GENERATION_POLL_MS = 2500;
+
+function getSelectedDuration() {
+    const selected = document.querySelector(
+        'input[name="duration"]:checked'
+    );
+    return Number(selected?.value || 30);
+}
+
+function updateGenerateHint() {
+    const duration = getSelectedDuration();
+
+    let cost = 1;
+
+    if (duration > 30 && duration <= 45) {
+        cost = 2;
+    } else if (duration > 45) {
+        cost = 3;
+    }
+
+    const hint = document.getElementById("generateHint");
+
+    if (hint) {
+        hint.textContent =
+            `${duration}-second videos use ${cost} credit${cost === 1 ? "" : "s"}.`;
+    }
+}
+
+function scrollToGenerator(event) {
+    if (event) event.preventDefault();
+
+    const generator = document.getElementById("generator");
+
+    if (generator) {
+        generator.scrollIntoView({
+            behavior: "smooth",
+            block: "start"
+        });
+
+        setTimeout(() => {
+            document.getElementById("topic")?.focus();
+        }, 350);
+    }
+}
+
+function setGenerationStatus(
+    mode,
+    title,
+    message,
+    error = ""
+) {
+    const box = document.getElementById("generationStatus");
+    const spinner = document.getElementById("statusSpinner");
+    const statusTitle = document.getElementById("statusTitle");
+    const statusMessage = document.getElementById("statusMessage");
+    const errorBox = document.getElementById("generationError");
+    const progress = document.getElementById("progressTrack");
+
+    box.className = `generation-status show ${mode || ""}`;
+
+    statusTitle.textContent = title;
+    statusMessage.textContent = message;
+    errorBox.textContent = error || "";
+
+    spinner.style.display =
+        mode === "success" || mode === "error"
+            ? "none"
+            : "block";
+
+    progress.style.display =
+        mode === "success" || mode === "error"
+            ? "none"
+            : "block";
+}
+
+function resetVideoResult() {
+    const result = document.getElementById("videoResult");
+    const video = document.getElementById("resultVideo");
+    const download = document.getElementById("downloadVideo");
+    const scriptPreview = document.getElementById("scriptPreview");
+
+    result.classList.remove("show");
+    scriptPreview.classList.remove("show");
+
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+
+    download.href = "#";
+}
+
+function setGeneratingState(active) {
+    generationInProgress = active;
+
+    const button = document.getElementById("generateButton");
+    const inputs = document.querySelectorAll(
+        "#generatorForm input, #generatorForm select"
+    );
+
+    button.disabled = active;
+    button.textContent = active
+        ? "Generating..."
+        : "Generate Video";
+
+    inputs.forEach(input => {
+        input.disabled = active;
+    });
+}
+
+function showCompletedVideo(data) {
+    const videoUrl = data.download_url;
+
+    if (!videoUrl) {
+        throw new Error(
+            "The server completed the job but did not return a video URL."
+        );
+    }
+
+    const video = document.getElementById("resultVideo");
+    const download = document.getElementById("downloadVideo");
+    const result = document.getElementById("videoResult");
+
+    const absoluteUrl =
+        videoUrl.startsWith("http")
+            ? videoUrl
+            : `${API_BASE}${videoUrl}`;
+
+    video.src = absoluteUrl;
+    download.href = absoluteUrl;
+
+    result.classList.add("show");
+
+    if (data.script) {
+        document.getElementById(
+            "scriptPreviewText"
+        ).textContent = data.script;
+
+        document.getElementById(
+            "scriptPreview"
+        ).classList.add("show");
+    }
+
+    setGenerationStatus(
+        "success",
+        "Video ready",
+        "Your video has finished generating. You can preview or download it."
+    );
+
+    setGeneratingState(false);
+
+    loadDashboard();
+}
+
+async function pollJobStatus(jobId) {
+    if (!generationInProgress) {
+        return;
+    }
+
+    try {
+        const response = await fetch(
+            `${API_BASE}/status/${encodeURIComponent(jobId)}`,
+            {
+                credentials: "include"
+            }
+        );
+
+        let data = null;
+
+        try {
+            data = await response.json();
+        } catch (_) {
+            throw new Error(
+                `Invalid server response (${response.status}).`
+            );
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                data?.detail ||
+                data?.error ||
+                `Status request failed (${response.status}).`
+            );
+        }
+
+        if (data.status === "pending") {
+
+            setGenerationStatus(
+                "processing",
+                "Queued",
+                "Your request is waiting to be processed."
+            );
+
+        } else if (data.status === "processing") {
+
+            setGenerationStatus(
+                "processing",
+                "Generating your video",
+                "Creating the script, voiceover and video. This can take a few minutes."
+            );
+
+        } else if (data.status === "completed") {
+
+            activeJobId = null;
+            clearTimeout(pollTimer);
+
+            showCompletedVideo(data);
+            return;
+
+        } else if (data.status === "failed") {
+
+            activeJobId = null;
+            clearTimeout(pollTimer);
+
+            setGenerationStatus(
+                "error",
+                "Generation failed",
+                "The video could not be generated.",
+                data.error || "Unknown generation error."
+            );
+
+            setGeneratingState(false);
+            loadDashboard();
+            return;
+
+        } else {
+
+            setGenerationStatus(
+                "processing",
+                "Working...",
+                `Job status: ${data.status || "unknown"}`
+            );
+        }
+
+        pollTimer = setTimeout(
+            () => pollJobStatus(jobId),
+            GENERATION_POLL_MS
+        );
+
+    } catch (error) {
+
+        console.error(
+            "Job status error:",
+            error
+        );
+
+        activeJobId = null;
+        clearTimeout(pollTimer);
+
+        setGenerationStatus(
+            "error",
+            "Unable to check generation",
+            "The connection to the server was interrupted.",
+            error.message
+        );
+
+        setGeneratingState(false);
+    }
+}
+
+async function startVideoGeneration(event) {
+    event.preventDefault();
+
+    if (generationInProgress) {
+        return;
+    }
+
+    const topicInput =
+        document.getElementById("topic");
+
+    const topic =
+        topicInput.value.trim();
+
+    if (!topic) {
+        topicInput.focus();
+        return;
+    }
+
+    const duration =
+        getSelectedDuration();
+
+    const aspectRatio =
+        document.getElementById("aspectRatio").value;
+
+    const voice =
+        document.getElementById("voice").value;
+
+    const captions =
+        document.getElementById("captions").checked;
+
+    resetVideoResult();
+
+    setGeneratingState(true);
+
+    setGenerationStatus(
+        "processing",
+        "Starting generation",
+        "Submitting your video request..."
+    );
+
+    try {
+
+        const response = await fetch(
+            `${API_BASE}/generate`,
+            {
+                method: "POST",
+                credentials: "include",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    topic,
+                    duration,
+                    aspect_ratio: aspectRatio,
+                    voice,
+                    captions
+                })
+            }
+        );
+
+        let data = null;
+
+        try {
+            data = await response.json();
+        } catch (_) {
+            throw new Error(
+                `Invalid server response (${response.status}).`
+            );
+        }
+
+        if (!response.ok) {
+
+            let message =
+                data?.detail ||
+                data?.error ||
+                `Generation request failed (${response.status}).`;
+
+            if (typeof message === "object") {
+                message =
+                    message.message ||
+                    JSON.stringify(message);
+            }
+
+            throw new Error(message);
+        }
+
+        if (!data.job_id) {
+            throw new Error(
+                "The server did not return a job ID."
+            );
+        }
+
+        activeJobId = data.job_id;
+
+        setGenerationStatus(
+            "processing",
+            "Generation started",
+            "Your video is now being created."
+        );
+
+        loadDashboard();
+
+        await pollJobStatus(activeJobId);
+
+    } catch (error) {
+
+        console.error(
+            "Generation error:",
+            error
+        );
+
+        activeJobId = null;
+
+        setGenerationStatus(
+            "error",
+            "Could not start generation",
+            "Your video request was not started.",
+            error.message
+        );
+
+        setGeneratingState(false);
+    }
+}
+
+function prepareNewVideo() {
+    if (pollTimer) {
+        clearTimeout(pollTimer);
+    }
+
+    activeJobId = null;
+    setGeneratingState(false);
+    resetVideoResult();
+
+    document.getElementById(
+        "generationStatus"
+    ).classList.remove("show");
+
+    document.getElementById(
+        "topic"
+    ).focus();
+
+    window.scrollTo({
+        top: 0,
+        behavior: "smooth"
+    });
+}
+
+document.getElementById(
+    "generatorForm"
+)?.addEventListener(
+    "submit",
+    startVideoGeneration
+);
+
+document.querySelectorAll(
+    'input[name="duration"]'
+).forEach(input => {
+    input.addEventListener(
+        "change",
+        updateGenerateHint
+    );
+});
+
+document.getElementById(
+    "newVideoButton"
+)?.addEventListener(
+    "click",
+    prepareNewVideo
+);
+
+updateGenerateHint();
+
+
+/* ==========================================
+   START
+========================================== */
+
+loadDashboard();
+
+</script>
+
+</body>
+</html>

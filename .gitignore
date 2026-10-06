@@ -1,0 +1,21 @@
+# Secrets
+.env
+
+# Generated media
+audio/
+videos/
+data/temp_clips/
+
+*.mp3
+*.mp4
+*.wav
+*.webm
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# Database
+*.db
