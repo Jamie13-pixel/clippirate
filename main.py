@@ -12,10 +12,11 @@ import threading
 import traceback
 import uuid
 import sqlite3
+from decimal import Decimal, ROUND_HALF_UP
 from pathlib import Path
 from urllib.parse import quote
 
-from fastapi import FastAPI, HTTPException, Request, Response
+from fastapi import FastAPI, HTTPException, Request, Response, Query
 from fastapi.responses import FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
@@ -1450,24 +1451,177 @@ def usage(
 
 
 # ============================================================
-# PLANS
+# PLANS & MULTI-CURRENCY PAYMENTS
 # ============================================================
 
-# Single source of truth for plans. The price here is what Paystack
-# charges (in KSh); /plans only displays it.
+# Subscription prices are maintained internally in USD. At checkout,
+# the selected currency is converted to a fixed, configurable retail
+# amount so a customer's price does not unexpectedly change because
+# of a live FX fluctuation.
 PLAN_CATALOG = [
-    {"id": "free", "name": "Free", "credits": 6, "price": 0, "billing": "free"},
-    {"id": "starter", "name": "Starter", "credits": 150, "price": 300, "billing": "monthly"},
-    {"id": "pro", "name": "Pro", "credits": 300, "price": 600, "billing": "monthly"},
-    {"id": "mega", "name": "Mega", "credits": 600, "price": 1200, "billing": "monthly"},
+    {"id": "free", "name": "Free", "credits": 6, "price_usd": 0, "billing": "free"},
+    {"id": "starter", "name": "Starter", "credits": 150, "price_usd": 5, "billing": "monthly"},
+    {"id": "pro", "name": "Pro", "credits": 300, "price_usd": 10, "billing": "monthly"},
+    {"id": "mega", "name": "Mega", "credits": 600, "price_usd": 20, "billing": "monthly"},
 ]
+
+# Configure these in .env when you want to change your retail FX
+# conversion. Only used for currencies listed in
+# PAYSTACK_ENABLED_CURRENCIES (USD only by default).
+FX_RATES = {
+    "USD": 1.0,
+    "KES": float(os.getenv("USD_TO_KES", "129.0")),
+    "GHS": float(os.getenv("USD_TO_GHS", "12.0")),
+    "ZAR": float(os.getenv("USD_TO_ZAR", "17.0")),
+    "NGN": float(os.getenv("USD_TO_NGN", "1600.0")),
+}
+
+CURRENCY_META = {
+    "USD": {"name": "US Dollar", "symbol": "$", "decimals": 2},
+    "KES": {"name": "Kenyan Shilling", "symbol": "KSh", "decimals": 2},
+    "GHS": {"name": "Ghanaian Cedi", "symbol": "GH₵", "decimals": 2},
+    "ZAR": {"name": "South African Rand", "symbol": "R", "decimals": 2},
+    "NGN": {"name": "Nigerian Naira", "symbol": "₦", "decimals": 2},
+}
+
+PAYMENT_DEFAULT_CURRENCY = os.getenv(
+    "PAYMENT_DEFAULT_CURRENCY", "USD"
+).strip().upper()
+
+# USD is the only enabled currency by default. Add others only after
+# Paystack has enabled them for your merchant account:
+# PAYSTACK_ENABLED_CURRENCIES=USD,KES
+# PAYSTACK_ENABLED_CURRENCIES=USD,KES,GHS,ZAR,NGN
+# If you set PAYMENT_DEFAULT_CURRENCY in .env, make sure it is also
+# listed in PAYSTACK_ENABLED_CURRENCIES.
+PAYSTACK_ENABLED_CURRENCIES = {
+    currency.strip().upper()
+    for currency in os.getenv(
+        "PAYSTACK_ENABLED_CURRENCIES", "USD"
+    ).split(",")
+    if currency.strip()
+}
+
+PAYSTACK_SUPPORTED_CURRENCIES = set(CURRENCY_META)
+
+
+def normalize_payment_currency(currency: str | None) -> str:
+    currency = (
+        currency or PAYMENT_DEFAULT_CURRENCY
+    ).strip().upper()
+
+    if currency not in PAYSTACK_SUPPORTED_CURRENCIES:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "unsupported_currency",
+                "message": f"Currency {currency} is not supported by Clip Pirate.",
+                "supported_currencies": sorted(PAYSTACK_SUPPORTED_CURRENCIES),
+            },
+        )
+
+    if currency not in PAYSTACK_ENABLED_CURRENCIES:
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "currency_not_enabled",
+                "message": (
+                    f"{currency} is not enabled for this Paystack merchant account. "
+                    "Enable it in PAYSTACK_ENABLED_CURRENCIES only after Paystack "
+                    "activates the currency for your account."
+                ),
+                "enabled_currencies": sorted(PAYSTACK_ENABLED_CURRENCIES),
+            },
+        )
+
+    return currency
+
+
+def convert_usd_to_currency(amount_usd: float, currency: str) -> float:
+    currency = normalize_payment_currency(currency)
+    rate = FX_RATES.get(currency)
+
+    if rate is None or rate <= 0:
+        raise HTTPException(
+            status_code=500,
+            detail=f"No valid exchange rate is configured for {currency}.",
+        )
+
+    amount = Decimal(str(amount_usd)) * Decimal(str(rate))
+
+    return float(
+        amount.quantize(
+            Decimal("0.01"),
+            rounding=ROUND_HALF_UP,
+        )
+    )
+
+
+def paystack_amount_subunit(amount: float, currency: str) -> int:
+    # Paystack requires the amount in the smallest unit of the selected
+    # currency (for example KES cents or USD cents).
+    normalize_payment_currency(currency)
+
+    return int(
+        (Decimal(str(amount)) * Decimal("100")).quantize(
+            Decimal("1"),
+            rounding=ROUND_HALF_UP,
+        )
+    )
+
+
+def build_plan_prices(currency: str) -> list[dict]:
+    currency = normalize_payment_currency(currency)
+    meta = CURRENCY_META[currency]
+    result = []
+
+    for plan in PLAN_CATALOG:
+        price = convert_usd_to_currency(
+            plan["price_usd"], currency
+        )
+        result.append({
+            **plan,
+            "price": price,
+            "currency": currency,
+            "currency_symbol": meta["symbol"],
+            "currency_name": meta["name"],
+        })
+
+    return result
 
 
 @app.get("/plans")
-def plans():
+def plans(
+    currency: str = Query(
+        default=PAYMENT_DEFAULT_CURRENCY,
+        min_length=3,
+        max_length=3,
+    )
+):
+    currency = normalize_payment_currency(currency)
 
     return {
-        "plans": PLAN_CATALOG
+        "plans": build_plan_prices(currency),
+        "currency": currency,
+        "currency_name": CURRENCY_META[currency]["name"],
+        "currency_symbol": CURRENCY_META[currency]["symbol"],
+        "enabled_currencies": sorted(PAYSTACK_ENABLED_CURRENCIES),
+        "default_currency": PAYMENT_DEFAULT_CURRENCY,
+    }
+
+
+@app.get("/payments/currencies")
+def payment_currencies():
+    return {
+        "default_currency": PAYMENT_DEFAULT_CURRENCY,
+        "enabled_currencies": [
+            {
+                "code": currency,
+                **CURRENCY_META[currency],
+            }
+            for currency in sorted(PAYSTACK_ENABLED_CURRENCIES)
+            if currency in CURRENCY_META
+        ],
     }
 
 
@@ -1544,10 +1698,10 @@ def dev_upgrade(
 # ============================================================
 
 # Prices charged through Paystack, taken from PLAN_CATALOG above.
-PAYSTACK_PLAN_PRICES = {
-    plan["id"]: plan["price"]
+PLAN_PRICES_USD = {
+    plan["id"]: plan["price_usd"]
     for plan in PLAN_CATALOG
-    if plan["price"] > 0
+    if plan["price_usd"] > 0
 }
 
 
@@ -1555,47 +1709,59 @@ PAYSTACK_PLAN_PRICES = {
 @limiter.limit("10/minute")
 def initialize_paystack_payment(
     request: Request,
-    payload: dict
+    payload: dict,
 ):
     user = current_user(request)
 
     if not PAYSTACK_SECRET_KEY:
         raise HTTPException(
             status_code=503,
-            detail="Payments are not configured."
+            detail="Payments are not configured.",
         )
 
-    plan = str(payload.get("plan", "")).lower().strip()
+    plan = str(
+        payload.get("plan", "")
+    ).lower().strip()
 
-    if plan not in PAYSTACK_PLAN_PRICES:
+    if plan not in PLAN_PRICES_USD:
         raise HTTPException(
             status_code=400,
-            detail="Invalid subscription plan."
+            detail="Invalid subscription plan.",
         )
 
-    amount_kes = PAYSTACK_PLAN_PRICES[plan]
+    currency = normalize_payment_currency(
+        str(
+            payload.get("currency")
+            or PAYMENT_DEFAULT_CURRENCY
+        )
+    )
 
-    # Get the user's email from the authenticated account.
+    amount_usd = PLAN_PRICES_USD[plan]
+    amount = convert_usd_to_currency(
+        amount_usd,
+        currency,
+    )
+    amount_subunit = paystack_amount_subunit(
+        amount,
+        currency,
+    )
+
     user = dict(user)
     email = user.get("email")
 
     if not email:
         raise HTTPException(
             status_code=400,
-            detail="A valid account email is required for payment."
+            detail="A valid account email is required for payment.",
         )
 
-    # Create our internal payment first.
     payment_id = create_payment(
         user_id=user["id"],
         plan=plan,
-        amount=amount_kes,
+        amount=amount,
         provider="paystack",
-        currency="KES",
+        currency=currency,
     )
-
-    # Paystack expects the amount in the smallest currency unit.
-    amount_subunit = amount_kes * 100
 
     try:
         response = requests.post(
@@ -1607,12 +1773,15 @@ def initialize_paystack_payment(
             json={
                 "email": email,
                 "amount": amount_subunit,
-                "currency": "KES",
+                "currency": currency,
                 "callback_url": PAYSTACK_CALLBACK_URL,
                 "metadata": {
                     "payment_id": payment_id,
                     "user_id": user["id"],
                     "plan": plan,
+                    "currency": currency,
+                    "amount": amount,
+                    "amount_usd": amount_usd,
                 },
             },
             timeout=30,
@@ -1626,7 +1795,7 @@ def initialize_paystack_payment(
 
         raise HTTPException(
             status_code=502,
-            detail="Unable to connect to Paystack."
+            detail="Unable to connect to Paystack.",
         )
 
     if not data.get("status") or not data.get("data"):
@@ -1634,7 +1803,7 @@ def initialize_paystack_payment(
 
         raise HTTPException(
             status_code=502,
-            detail="Paystack could not initialize the transaction."
+            detail="Paystack could not initialize the transaction.",
         )
 
     paystack_data = data["data"]
@@ -1648,11 +1817,10 @@ def initialize_paystack_payment(
 
         raise HTTPException(
             status_code=502,
-            detail="Paystack returned an incomplete transaction."
+            detail="Paystack returned an incomplete transaction.",
         )
 
-    # Store Paystack's reference against our internal payment.
-    with sqlite3.connect("data/clip_pirate.db") as conn:
+    with sqlite3.connect(BASE_DIR / "data" / "clip_pirate.db") as conn:
         conn.execute(
             """
             UPDATE payments
@@ -1665,14 +1833,19 @@ def initialize_paystack_payment(
         conn.commit()
 
     return {
-    "payment_id": payment_id,
-    "reference": reference,
-    "access_code": access_code,
-    "authorization_url": authorization_url,
-    "amount": amount_kes,
-    "currency": "KES",
-    "plan": plan,
-}
+        "payment_id": payment_id,
+        "reference": reference,
+        "access_code": access_code,
+        "authorization_url": authorization_url,
+        "amount": amount,
+        "amount_usd": amount_usd,
+        "amount_subunit": amount_subunit,
+        "currency": currency,
+        "currency_symbol": CURRENCY_META[currency]["symbol"],
+        "plan": plan,
+    }
+
+
 # ============================================================
 # PAYSTACK SHARED HELPERS
 # ============================================================
@@ -1721,7 +1894,7 @@ def finalize_paystack_payment(payment, transaction: dict, reference: str):
     """
 
     # Paystack amounts are in the smallest currency unit.
-    expected_amount = int(payment["amount"]) * 100
+    expected_amount = paystack_amount_subunit(float(payment["amount"]), str(payment["currency"]))
 
     actual_amount = int(
         transaction.get("amount") or 0
@@ -1738,11 +1911,14 @@ def finalize_paystack_payment(payment, transaction: dict, reference: str):
             "Payment amount does not match the selected plan."
         )
 
-    if actual_currency != "KES":
-        fail_payment(payment["id"])
+    expected_currency = str(
+        payment["currency"]
+    ).upper()
 
+    if actual_currency != expected_currency:
+        fail_payment(payment["id"])
         raise PaymentMismatch(
-            "Payment currency does not match KES."
+            f"Expected {expected_currency}, got {actual_currency}"
         )
 
     with _payment_lock:

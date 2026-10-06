@@ -1301,7 +1301,7 @@
 
                                 <div class="form-group">
                                     <label>Duration</label>
-                                    <select id="videoDuration">
+                                    <select id="videoDuration" onchange="updateCreditCost()">
                                         <option value="30">30 seconds</option>
                                         <option value="45">45 seconds</option>
                                         <option value="60">60 seconds</option>
@@ -1336,6 +1336,7 @@
                                 </div>
 
                                 <div class="full">
+                                    <p id="creditCostInfo" style="color:var(--muted);font-size:13px;margin-bottom:12px;"></p>
                                     <button class="primary-btn" type="submit" id="generateButton">
                                         Generate Video
                                     </button>
@@ -1569,7 +1570,12 @@
                                 <div class="setting-control" id="accountCredits">—</div>
                             </div>
 
-                            <h3 style="margin:36px 0 6px;">Subscription plans</h3>
+                            <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:36px 0 6px;">
+                                <h3>Subscription plans</h3>
+                                <div id="currencyPicker" class="hidden" style="min-width:200px;">
+                                    <select id="currencySelect" onchange="changeCurrency(this.value)" aria-label="Currency"></select>
+                                </div>
+                            </div>
 
                             <div
                                 id="plansGrid"
@@ -1629,7 +1635,42 @@
     let templateRegistry = {};
     let currentPlanId = "free";
 
-    const PLAN_PRICES_KSH = { free: 0, starter: 300, pro: 600, mega: 1200 };
+    const CURRENCY_STORAGE_KEY = "clipPirateCurrency";
+    let selectedCurrency = "";
+
+    try {
+        selectedCurrency = localStorage.getItem(CURRENCY_STORAGE_KEY) || "";
+    } catch (error) {
+        selectedCurrency = "";
+    }
+
+    // Mirrors credit_cost() in main.py
+    function creditCost(duration) {
+        if (duration <= 30) return 2;
+        if (duration <= 45) return 4;
+        return 6;
+    }
+
+    function updateCreditCost() {
+
+        const info = document.getElementById("creditCostInfo");
+        const select = document.getElementById("videoDuration");
+
+        if (!info || !select) return;
+
+        const cost = creditCost(Number(select.value));
+
+        info.textContent =
+            `This video will use ${cost} credits.`;
+    }
+
+    function formatUsage(usage) {
+
+        if (usage.limit < 0) return `${usage.used} / ∞`;
+        if (usage.limit > 0) return `${usage.used} / ${usage.limit}`;
+
+        return String(usage.used);
+    }
     const SIDEBAR_STORAGE_KEY = "clipPirateSidebarCollapsed";
 
 
@@ -1719,7 +1760,28 @@
                 }
             }
 
-            throw new Error(message);
+            // Session expired while using the app.
+            if (
+                response.status === 401 &&
+                currentUser &&
+                !String(url).startsWith("/auth/")
+            ) {
+                currentUser = null;
+                showAuthScreen();
+                showLogin();
+                showToast("Your session expired. Please log in again.");
+            }
+
+            const err = new Error(message);
+
+            err.status = response.status;
+
+            if (data && data.detail && typeof data.detail === "object") {
+                err.code = data.detail.code;
+                err.upgradeRequired = !!data.detail.upgrade_required;
+            }
+
+            throw err;
         }
 
         return data;
@@ -2080,7 +2142,7 @@
                 projects.length;
 
             document.getElementById("dashboardUsage").textContent =
-                normalizeUsage(usageData).used;
+                formatUsage(normalizeUsage(usageData));
 
             renderRecentProjects(projects);
 
@@ -2304,10 +2366,17 @@
 
             } catch (error) {
 
-                showGenerationStatus(
-                    error.message || "Generation failed.",
-                    "error"
-                );
+                if (error.upgradeRequired) {
+
+                    showUpgradePrompt(error.message || "Upgrade required.");
+
+                } else {
+
+                    showGenerationStatus(
+                        error.message || "Generation failed.",
+                        "error"
+                    );
+                }
 
                 button.disabled = false;
                 button.textContent = "Generate Video";
@@ -2351,6 +2420,36 @@
                 style="display:inline-block;text-decoration:none;margin-left:8px;"
             >Download Video</a>
         `;
+    }
+
+
+    function showUpgradePrompt(message) {
+
+        const box = document.getElementById("generationStatus");
+
+        box.className = "generation-status show error";
+
+        box.innerHTML = `
+            ${escapeHtml(message)}
+            <br><br>
+            <button
+                type="button"
+                class="secondary-btn"
+                onclick="goToPlans()"
+            >View plans</button>
+        `;
+    }
+
+
+    function goToPlans() {
+
+        navigate("settings");
+
+        const accountButton = Array.from(
+            document.querySelectorAll(".settings-nav button")
+        ).find(btn => btn.textContent.trim() === "Account");
+
+        showSettingsPanel("account", accountButton);
     }
 
 
@@ -2400,6 +2499,9 @@
             }
 
             if (data.status === "failed") {
+
+                // The backend refunds credits and the daily generation.
+                refreshCurrentUser();
 
                 showGenerationStatus(
                     data.error || "Video generation failed.",
@@ -2752,19 +2854,75 @@
 
     function formatPlanPrice(plan) {
 
-        const planData =
-            plan && typeof plan === "object"
-                ? plan
-                : { id: String(plan || "").toLowerCase(), price: 0 };
+        // Prices come from the backend (/plans?currency=XXX), already
+        // converted to the selected currency.
+        const price = Number(plan && plan.price) || 0;
 
-        const id = String(planData.id || "").toLowerCase();
+        if (price === 0) return "Free";
 
-        const price =
-            id in PLAN_PRICES_KSH
-                ? PLAN_PRICES_KSH[id]
-                : Number(planData.price) || 0;
+        const symbol =
+            (plan && (plan.currency_symbol || plan.currency)) || "";
 
-        return price === 0 ? "KSh 0" : `KSh ${price.toLocaleString()}/month`;
+        const formatted = price.toLocaleString(undefined, {
+            minimumFractionDigits: price % 1 ? 2 : 0,
+            maximumFractionDigits: 2
+        });
+
+        return `${symbol} ${formatted}/month`;
+    }
+
+
+    async function loadCurrencies() {
+
+        const select = document.getElementById("currencySelect");
+
+        if (!select || select.options.length) return;
+
+        try {
+
+            const response = await fetch(
+                `${planApiBase()}/payments/currencies`,
+                { credentials: "include" }
+            );
+
+            const data = await readJsonSafe(response);
+
+            const list = Array.isArray(data.enabled_currencies)
+                ? data.enabled_currencies
+                : [];
+
+            select.innerHTML = list.map(c => `
+                <option value="${escapeAttribute(c.code)}">
+                    ${escapeHtml(c.code)} — ${escapeHtml(c.name || "")}
+                </option>
+            `).join("");
+
+            select.value = selectedCurrency || data.default_currency || "";
+
+            // Only show the picker when there is a real choice.
+            const picker = document.getElementById("currencyPicker");
+
+            if (picker) {
+                picker.classList.toggle("hidden", list.length <= 1);
+            }
+
+        } catch (error) {
+            console.error("Could not load currencies:", error);
+        }
+    }
+
+
+    function changeCurrency(code) {
+
+        selectedCurrency = String(code || "");
+
+        try {
+            localStorage.setItem(CURRENCY_STORAGE_KEY, selectedCurrency);
+        } catch (error) {
+            // Storage unavailable; the choice still applies this visit.
+        }
+
+        loadPlans();
     }
 
 
@@ -2850,12 +3008,43 @@
                 ).toLowerCase();
             }
 
-            const response = await fetch(
-                `${planApiBase()}/plans`,
-                { credentials: "include" }
-            );
+            await loadCurrencies();
+
+            let url = `${planApiBase()}/plans`;
+
+            if (selectedCurrency) {
+                url += `?currency=${encodeURIComponent(selectedCurrency)}`;
+            }
+
+            let response = await fetch(url, { credentials: "include" });
+
+            // A saved currency may no longer be enabled: fall back to default.
+            if (!response.ok && selectedCurrency) {
+
+                selectedCurrency = "";
+
+                try {
+                    localStorage.removeItem(CURRENCY_STORAGE_KEY);
+                } catch (error) {
+                    // ignore
+                }
+
+                response = await fetch(
+                    `${planApiBase()}/plans`,
+                    { credentials: "include" }
+                );
+            }
 
             const data = await readJsonSafe(response);
+
+            if (data && data.currency) {
+
+                selectedCurrency = data.currency;
+
+                const select = document.getElementById("currencySelect");
+
+                if (select) select.value = data.currency;
+            }
 
             renderPlans(data && data.plans ? data.plans : data);
 
@@ -2942,7 +3131,10 @@
                     headers: {
                         "Content-Type": "application/json"
                     },
-                    body: JSON.stringify({ plan })
+                    body: JSON.stringify({
+                        plan,
+                        currency: selectedCurrency || undefined
+                    })
                 }
             );
 
@@ -3179,6 +3371,8 @@
                 topic.setSelectionRange(topic.value.length, topic.value.length);
             }
         }
+
+        updateCreditCost();
 
         // The template applies once, then clears.
         try {
