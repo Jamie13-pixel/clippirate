@@ -1599,6 +1599,36 @@ def update_project(
         )
 
 
+def expire_project_video(
+    video_url
+):
+
+    """
+    Called after a stored video file is deleted to free disk space.
+
+    Clears the link so the app stops offering Open / Download
+    buttons for a file that no longer exists.
+    """
+
+    with _conn() as c:
+
+        c.execute(
+            """
+            UPDATE projects
+
+            SET
+                video_url = NULL,
+                status = 'expired'
+
+            WHERE
+                video_url = ?
+            """,
+            (
+                video_url,
+            )
+        )
+
+
 def list_projects(
     user_id,
     limit=20

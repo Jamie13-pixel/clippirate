@@ -647,6 +647,11 @@
             color: #b7aaff;
         }
 
+        .status.expired {
+            background: rgba(146, 153, 168, 0.12);
+            color: #9299a8;
+        }
+
         .empty-state {
             padding: 55px 20px;
             text-align: center;
@@ -2891,11 +2896,18 @@
                 ? data.enabled_currencies
                 : [];
 
-            select.innerHTML = list.map(c => `
-                <option value="${escapeAttribute(c.code)}">
-                    ${escapeHtml(c.code)} — ${escapeHtml(c.name || "")}
-                </option>
-            `).join("");
+            // M-Pesa is only available for KES; other currencies are card payments.
+            select.innerHTML = list.map(c => {
+
+                const methods =
+                    c.code === "KES" ? "M-Pesa & cards" : "cards only";
+
+                return `
+                    <option value="${escapeAttribute(c.code)}">
+                        ${escapeHtml(c.code)} — ${escapeHtml(methods)}
+                    </option>
+                `;
+            }).join("");
 
             select.value = selectedCurrency || data.default_currency || "";
 
