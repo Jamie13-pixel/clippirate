@@ -3,7 +3,7 @@ import os
 import random
 import subprocess
 import uuid
-
+import gc
 import imageio_ffmpeg
 import requests
 from moviepy import (
@@ -15,13 +15,24 @@ from moviepy import (
     vfx,
 )
 
-RATIO_SIZES = {
-    "9:16": (1080, 1920),
-    "16:9": (1920, 1080),
-    "4:3": (1440, 1080),
-    "3:4": (1080, 1440),
-    "1:1": (1080, 1080),
-}
+LOW_MEMORY = os.getenv("LOW_MEMORY_MODE", "true").lower() == "true"
+
+if LOW_MEMORY:
+    RATIO_SIZES = {
+        "9:16": (720, 1280),
+        "16:9": (1280, 720),
+        "4:3": (960, 720),
+        "3:4": (720, 960),
+        "1:1": (720, 720),
+    }
+else:
+    RATIO_SIZES = {
+        "9:16": (1080, 1920),
+        "16:9": (1920, 1080),
+        "4:3": (1440, 1080),
+        "3:4": (1080, 1440),
+        "1:1": (1080, 1080),
+    }
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMP_CLIPS_DIR = os.path.join(BASE_DIR, "data", "temp_clips")
@@ -43,7 +54,7 @@ CAPTION_FONT_CANDIDATES = [
 # delete these two and import yours instead.
 # ============================================================
 
-def search_video_clips(query, count=5, aspect_ratio="9:16"):
+def search_video_clips(query, count=2, aspect_ratio="9:16"):
     """Return a list of direct mp4 URLs for the query."""
 
     api_key = os.environ.get(PEXELS_API_KEY_ENV, "").strip()
@@ -211,7 +222,7 @@ def _find_caption_font():
     return None
 
 
-def _caption_segments(timeline, script_text, target_duration, words_per_chunk=4):
+def _caption_segments(timeline, script_text, target_duration, words_per_chunk=6):
     """Return a list of (text, start, duration) caption chunks."""
 
     lines = []
@@ -283,7 +294,7 @@ def _add_captions(
         return video
 
     font = _find_caption_font()
-    font_size = max(int(min(width, height) * 0.07), 28)
+    font_size = max(int(min(width, height) * 0.055), 24)
 
     overlays = []
 
@@ -432,7 +443,7 @@ def build_video(
 
             duration = float(scene.get("duration", 3))
 
-            if duration > 4:
+            if duration > 8:
 
                 half = duration / 2
 
@@ -474,7 +485,7 @@ def build_video(
                 if query not in url_cache:
                     url_cache[query] = search_video_clips(
                         query,
-                        count=5,
+                        count=2,
                         aspect_ratio=aspect_ratio
                     )
 
@@ -500,7 +511,10 @@ def build_video(
 
                 downloaded_paths.append(path)
 
-                clip = VideoFileClip(path, audio=False)
+                clip = (
+                    VideoFileClip(path, audio=False)
+                    .resized(height=720)
+                )
 
                 raw_clips.append(clip)
 
@@ -509,6 +523,7 @@ def build_video(
                 clip = _fit_clip_to_duration(clip, duration)
 
                 scene_clips.append(clip)
+                gc.collect()
 
             except Exception as e:
 
@@ -526,7 +541,7 @@ def build_video(
                 "Check the stock footage API key and search results."
             )
 
-        video = concatenate_videoclips(scene_clips, method="compose")
+        video = concatenate_videoclips(scene_clips, method="chain")
 
         # If some scenes failed, loop what we have to cover the narration.
         video = _fit_clip_to_duration(video, target_duration)
@@ -554,6 +569,14 @@ def build_video(
         # ========================================
         # ATTACH NARRATION AND WRITE
         # ========================================
+        for clip_obj in raw_clips:
+            try:
+               clip_obj.close()
+            except Exception:
+               pass
+
+        raw_clips.clear()
+        gc.collect()
 
         audio = AudioFileClip(audio_file)
 
@@ -566,11 +589,17 @@ def build_video(
 
         final_video.write_videofile(
             output_file,
-            fps=30,
+            fps=24,
             codec="libx264",
             audio_codec="aac",
-            preset="veryfast",
-            threads=4,
+            preset="ultrafast",
+            bitrate="1500k",
+            audio_bitrate="96k",
+            threads=1,
+            ffmpeg_params=[
+                "-max_muxing_queue_size",
+                "1024"
+            ],
             logger=None,
         )
 
