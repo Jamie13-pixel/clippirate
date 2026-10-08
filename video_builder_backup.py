@@ -15,15 +15,12 @@ from moviepy import (
     vfx,
 )
 
-LOW_MEMORY = os.getenv("LOW_MEMORY_MODE", "true").lower() == "true"
-
-if LOW_MEMORY:
     RATIO_SIZES = {
-        "9:16": (720, 1280),
-        "16:9": (1280, 720),
-        "4:3": (960, 720),
-        "3:4": (720, 960),
-        "1:1": (720, 720),
+        "9:16": (1080, 1920),
+          "16:9": (1920, 1080),
+        "4:3": (1440, 1080),
+        "3:4": (1080, 1440),
+        "1:1": (1080, 1080),
     }
 else:
     RATIO_SIZES = {
@@ -54,7 +51,7 @@ CAPTION_FONT_CANDIDATES = [
 # delete these two and import yours instead.
 # ============================================================
 
-def search_video_clips(query, count=2, aspect_ratio="9:16"):
+def search_video_clips(query, count=5, aspect_ratio="9:16"):
     """Return a list of direct mp4 URLs for the query."""
 
     api_key = os.environ.get(PEXELS_API_KEY_ENV, "").strip()
@@ -142,11 +139,7 @@ def _prepare_audio(audio_file, target_duration):
     The file is rewritten in place.
     """
 
-    clip = VideoFileClip(
-    path,
-    audio=False,
-    target_resolution=(720, None)
-)
+    clip = VideoFileClip(path, audio=False)
 
     try:
         current = float(clip.duration)
@@ -581,11 +574,11 @@ def build_video(
 
         final_video.write_videofile(
             output_file,
-            fps=24,
+            fps=30,
             codec="libx264",
             audio_codec="aac",
-            preset="ultrafast",
-            threads=2,
+            preset="veryfast",
+            threads=4,
             logger=None,
         )
 

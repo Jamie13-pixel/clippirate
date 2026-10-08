@@ -3,7 +3,7 @@ import os
 import random
 import subprocess
 import uuid
-import gc
+
 import imageio_ffmpeg
 import requests
 from moviepy import (
@@ -19,8 +19,8 @@ LOW_MEMORY = os.getenv("LOW_MEMORY_MODE", "true").lower() == "true"
 
 if LOW_MEMORY:
     RATIO_SIZES = {
-        "9:16": (540, 960),
-        "16:9": (960, 540),
+        "9:16": (720, 1280),
+        "16:9": (1280, 720),
         "4:3": (960, 720),
         "3:4": (720, 960),
         "1:1": (720, 720),
@@ -142,7 +142,11 @@ def _prepare_audio(audio_file, target_duration):
     The file is rewritten in place.
     """
 
-    clip = AudioFileClip(audio_file)
+    clip = VideoFileClip(
+    path,
+    audio=False,
+    target_resolution=(720, None)
+)
 
     try:
         current = float(clip.duration)
@@ -222,7 +226,7 @@ def _find_caption_font():
     return None
 
 
-def _caption_segments(timeline, script_text, target_duration, words_per_chunk=6):
+def _caption_segments(timeline, script_text, target_duration, words_per_chunk=4):
     """Return a list of (text, start, duration) caption chunks."""
 
     lines = []
@@ -294,7 +298,7 @@ def _add_captions(
         return video
 
     font = _find_caption_font()
-    font_size = max(int(min(width, height) * 0.055), 24)
+    font_size = max(int(min(width, height) * 0.07), 28)
 
     overlays = []
 
@@ -443,7 +447,7 @@ def build_video(
 
             duration = float(scene.get("duration", 3))
 
-            if duration > 8:
+            if duration > 4:
 
                 half = duration / 2
 
@@ -485,7 +489,7 @@ def build_video(
                 if query not in url_cache:
                     url_cache[query] = search_video_clips(
                         query,
-                        count=2,
+                        count=5,
                         aspect_ratio=aspect_ratio
                     )
 
@@ -511,10 +515,7 @@ def build_video(
 
                 downloaded_paths.append(path)
 
-                clip = (
-                    VideoFileClip(path, audio=False)
-                    .resized(height=540)
-                )
+                clip = VideoFileClip(path, audio=False)
 
                 raw_clips.append(clip)
 
@@ -523,7 +524,6 @@ def build_video(
                 clip = _fit_clip_to_duration(clip, duration)
 
                 scene_clips.append(clip)
-                gc.collect()
 
             except Exception as e:
 
@@ -541,7 +541,7 @@ def build_video(
                 "Check the stock footage API key and search results."
             )
 
-        video = concatenate_videoclips(scene_clips, method="chain")
+        video = concatenate_videoclips(scene_clips, method="compose")
 
         # If some scenes failed, loop what we have to cover the narration.
         video = _fit_clip_to_duration(video, target_duration)
@@ -569,14 +569,6 @@ def build_video(
         # ========================================
         # ATTACH NARRATION AND WRITE
         # ========================================
-        for clip_obj in raw_clips:
-            try:
-               clip_obj.close()
-            except Exception:
-               pass
-
-        raw_clips.clear()
-        gc.collect()
 
         audio = AudioFileClip(audio_file)
 
@@ -593,13 +585,7 @@ def build_video(
             codec="libx264",
             audio_codec="aac",
             preset="ultrafast",
-            bitrate="1500k",
-            audio_bitrate="96k",
-            threads=1,
-            ffmpeg_params=[
-                "-max_muxing_queue_size",
-                "1024"
-            ],
+            threads=2,
             logger=None,
         )
 
