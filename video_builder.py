@@ -142,11 +142,45 @@ def _prepare_audio(audio_file, target_duration):
     The file is rewritten in place.
     """
 
-    clip = VideoFileClip(
-    path,
-    audio=False,
-    target_resolution=(720, None)
-)
+    clip = AudioFileClip(audio_file)
+
+    try:
+        current = float(clip.duration)
+    finally:
+        clip.close()
+
+    if abs(current - target_duration) < 0.05:
+        return
+
+    root, ext = os.path.splitext(audio_file)
+    temp_file = f"{root}.fit{ext}"
+
+    if current < target_duration:
+        audio_filter = "apad"
+    else:
+        fade = min(0.4, target_duration / 4)
+        audio_filter = (
+            f"afade=t=out:st={max(target_duration - fade, 0):.3f}:d={fade:.3f}"
+        )
+
+    command = [
+        imageio_ffmpeg.get_ffmpeg_exe(),
+        "-y",
+        "-i", audio_file,
+        "-af", audio_filter,
+        "-t", f"{target_duration:.3f}",
+        temp_file,
+    ]
+
+    result = subprocess.run(command, capture_output=True, text=True)
+
+    if result.returncode != 0 or not os.path.exists(temp_file):
+        raise RuntimeError(
+            "ffmpeg could not adjust the audio length: "
+            + (result.stderr or "")[-400:]
+        )
+
+    os.replace(temp_file, audio_file)
 
     try:
         current = float(clip.duration)
