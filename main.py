@@ -996,34 +996,28 @@ async def process_video_job(
         # VIDEO CREATION
         # ====================================================
 
-        print(
-            f"[JOB {job_id}] Starting video builder...",
-            flush=True
-        )
+        print(f"[JOB {job_id}] Sending to Modal.com...")
+        import modal
 
-        # NEW - Call Modal
+        # Lookup the deployed Modal function - no local file needed
+        build_video_modal = modal.Function.from_name("clip-pirate-video-builder", "build_video_modal")
 
-
-        print(f"[JOB {job_id}] Sending to Modal...")
-        # Read audio file
         with open(audio_file, "rb") as f:
             audio_bytes = f.read()
 
-        video_bytes = await asyncio.to_thread(
-            build_video_modal.remote,
+        video_bytes = build_video_modal.remote(
             audio_file_bytes=audio_bytes,
-            output_filename=f"{file_stem}.mp4",
+            output_filename=os.path.basename(video_file),
             topic=topic,
             script_text=script_text,
             timeline=timeline,
-            video_style=...,
-            aspect_ratio=settings["aspect_ratio"],
-            captions=settings["captions"],
-            target_duration=settings["duration"],
-            pexels_key=os.getenv("PEXELS_API_KEY"),
+            video_style=settings.get("video_style", "viral"),
+            aspect_ratio=settings.get("aspect_ratio", "9:16"),
+            captions=settings.get("captions", True),
+            target_duration=float(settings.get("duration", 30)),
+            pexels_key=os.getenv("PEXELS_API_KEY", ""),
         )
 
-        # Save returned video
         with open(video_file, "wb") as f:
             f.write(video_bytes)
 
