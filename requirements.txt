@@ -10,3 +10,4 @@ slowapi
 edge-tts
 email-validator
 google-genai
+gunicorn
