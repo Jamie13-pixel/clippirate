@@ -31,8 +31,6 @@ from video_builder import build_video
 from script_generator import generate_script
 from script_quality_control import quality_check_script
 
-from modal_app import build_video_modal
-
 from jobs import (
     create_job,
     set_status,
