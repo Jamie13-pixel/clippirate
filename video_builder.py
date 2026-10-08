@@ -19,8 +19,8 @@ LOW_MEMORY = os.getenv("LOW_MEMORY_MODE", "true").lower() == "true"
 
 if LOW_MEMORY:
     RATIO_SIZES = {
-        "9:16": (720, 1280),
-        "16:9": (1280, 720),
+        "9:16": (540, 960),
+        "16:9": (960, 540),
         "4:3": (960, 720),
         "3:4": (720, 960),
         "1:1": (720, 720),
@@ -513,7 +513,7 @@ def build_video(
 
                 clip = (
                     VideoFileClip(path, audio=False)
-                    .resized(height=720)
+                    .resized(height=540)
                 )
 
                 raw_clips.append(clip)
