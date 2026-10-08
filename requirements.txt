@@ -1,5 +1,6 @@
 fastapi
 uvicorn[standard]
+gunicorn
 pydantic
 python-dotenv
 requests
@@ -10,4 +11,4 @@ slowapi
 edge-tts
 email-validator
 google-genai
-gunicorn
+modal

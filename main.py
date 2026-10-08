@@ -1,6 +1,6 @@
 from dotenv import load_dotenv
 load_dotenv()
-
+import modal
 import requests
 import asyncio
 import hashlib
@@ -30,6 +30,8 @@ from templates_service import get_templates, get_template
 from video_builder import build_video
 from script_generator import generate_script
 from script_quality_control import quality_check_script
+
+from modal_app import build_video_modal
 
 from jobs import (
     create_job,
@@ -136,7 +138,7 @@ PAYSTACK_SECRET_KEY = os.getenv("PAYSTACK_SECRET_KEY")
 PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY")
 PAYSTACK_CALLBACK_URL = os.getenv(
     "PAYSTACK_CALLBACK_URL",
-    "http://127.0.0.1:8000/payments/paystack/callback"
+    "http://clippirate.onrender.com./payments/paystack/callback"
 )
 
 PAYSTACK_API = "https://api.paystack.co"
@@ -510,21 +512,12 @@ def auth_health():
 # PUBLIC ENTRY POINT
 # ============================================================
 
-@app.get("/")
-async def root():
-
-    """
-    Root URL deliberately does NOT serve the application.
-
-    The actual application is available at /app.
-    """
-
+@app.api_route("/", methods=["GET", "HEAD"])async def root():
     return {
         "service": APP_NAME,
         "status": "running",
         "app": "/app"
     }
-
 
 # ============================================================
 # DASHBOARD
@@ -1007,22 +1000,31 @@ async def process_video_job(
             flush=True
         )
 
-        await asyncio.to_thread(
-           build_video,
-           str(audio_file),
-           str(video_file),
-           topic=topic,
-           script_text=script_text,
-           timeline=timeline,
-           video_style=(
-               settings["template"]["id"]
-               if settings.get("template")
-               else "viral"
-           ),
-           aspect_ratio=settings["aspect_ratio"],
-           captions=settings["captions"],
-           target_duration=settings["duration"]
+        # NEW - Call Modal
+
+
+        print(f"[JOB {job_id}] Sending to Modal...")
+        # Read audio file
+        with open(audio_file, "rb") as f:
+            audio_bytes = f.read()
+
+        video_bytes = await asyncio.to_thread(
+            build_video_modal.remote,
+            audio_file_bytes=audio_bytes,
+            output_filename=f"{file_stem}.mp4",
+            topic=topic,
+            script_text=script_text,
+            timeline=timeline,
+            video_style=...,
+            aspect_ratio=settings["aspect_ratio"],
+            captions=settings["captions"],
+            target_duration=settings["duration"],
+            pexels_key=os.getenv("PEXELS_API_KEY"),
         )
+
+        # Save returned video
+        with open(video_file, "wb") as f:
+            f.write(video_bytes)
 
         print(
             f"[JOB {job_id}] Video completed: "
