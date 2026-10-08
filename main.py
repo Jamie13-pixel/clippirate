@@ -512,7 +512,8 @@ def auth_health():
 # PUBLIC ENTRY POINT
 # ============================================================
 
-@app.api_route("/", methods=["GET", "HEAD"])async def root():
+@app.api_route("/", methods=["GET", "HEAD"])
+async def root():
     return {
         "service": APP_NAME,
         "status": "running",
