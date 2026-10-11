@@ -1016,7 +1016,23 @@ async def process_video_job(
         video_bytes = build_video_modal.remote(
             audio_bytes=audio_bytes,
             topic=topic,
-            script_text=script,
+        # Fix variable name
+        final_script_text = locals().get("final_script") or locals().get("approved_script") or locals().get("script_content") or     qc_result.get("script", "") if 'qc_result' in locals() else ""
+
+        pixabay_key = os.getenv("PIXABAY_API_KEY", "").strip()
+        print(f"[MAIN] Sending Pixabay key len={len(pixabay_key)} to Modal")
+        print(f"DEBUG: script len={len(final_script_text)}")
+
+        video_bytes = build_video_modal.remote(
+        audio_bytes=audio_bytes,
+        topic=topic,
+        script_text=final_script_text,
+        timeline=timeline,
+        aspect_ratio=aspect_ratio,
+        pixabay_key=pixabay_key,
+        pexels_key=pixabay_key,
+
+        )
             timeline=timeline,
             aspect_ratio=aspect_ratio,
             pixabay_key=pixabay_key,
