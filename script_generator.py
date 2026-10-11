@@ -248,10 +248,57 @@ def _friendly_gemini_error(
 # GENERATE SCRIPT
 # ============================================================
 
+def _clean_visual(text) -> str:
+    """Keep a stock-footage search phrase short, lowercase and free of punctuation."""
+    text = re.sub(r"[^A-Za-z0-9 ]+", " ", str(text or ""))
+    return re.sub(r"\s+", " ", text).strip().lower()[:60]
+
+
+def _parse_visual_scenes(data):
+    """Read the {"scenes": [{"sentence", "visual"}, ...]} structure.
+
+    Returns (script_text, sentences, visuals) or None if the structure is missing.
+    """
+    scenes = data.get("scenes")
+
+    if not isinstance(scenes, list):
+        return None
+
+    sentences = []
+    visuals = []
+
+    for item in scenes:
+
+        if isinstance(item, dict):
+            sentence = str(item.get("sentence", "")).strip()
+            visual = _clean_visual(item.get("visual", ""))
+        else:
+            sentence = str(item).strip()
+            visual = ""
+
+        if sentence:
+            sentences.append(sentence)
+            visuals.append(visual)
+
+    if not sentences:
+        return None
+
+    return " ".join(sentences), sentences, visuals
+
+
 def generate_script(
     topic: str,
-    duration: int = 30
+    duration: int = 30,
+    with_visuals: bool = False
 ):
+    """Generate the narration script.
+
+    Default: returns (script_text, dialogue), exactly as before.
+
+    with_visuals=True: the same single Gemini call also writes a stock-footage
+    search phrase for every sentence, and the return value is
+    (script_text, sentences, visuals) where visuals[i] matches sentences[i].
+    """
 
     # --------------------------------------------------------
     # Validate topic
@@ -334,6 +381,66 @@ Use exactly this structure:
 }}
 """
 
+    if with_visuals:
+
+        prompt = f"""
+You are the professional script-writing engine for
+Clip Pirate .ai, an AI short-video generator.
+
+Create a high-retention short-form video narration and, for every
+sentence, a stock-footage search phrase for the matching visuals.
+
+TOPIC:
+{topic}
+
+REQUESTED DURATION:
+{duration} seconds
+
+TARGET WORD COUNT:
+Approximately {word_count} spoken words in total.
+
+NARRATION REQUIREMENTS:
+
+- Start with a strong hook.
+- Keep the viewer engaged.
+- Use natural spoken language.
+- Use short, clear sentences.
+- Each "sentence" must be exactly ONE complete sentence
+  ending in a period, exclamation mark or question mark.
+- Make it suitable for text-to-speech.
+- Make it informative and engaging.
+- Avoid unnecessary filler.
+- Do not include camera directions, scene directions, timestamps,
+  sound effects or production instructions in the sentences.
+- Do not mention AI.
+- End naturally.
+- Keep the narration close to the requested word count.
+
+VISUAL REQUIREMENTS:
+
+- "visual" is a 2 to 4 word search phrase for a stock-video library
+  such as Pixabay. It is never spoken.
+- Describe something concrete that a camera can film, for example
+  "soccer stadium crowd", "city skyline night", "stack of cash",
+  "ocean waves", "person typing laptop".
+- It must match what that sentence is about.
+- Vary the visuals from sentence to sentence.
+- Never use people's names, brand names, team names or on-screen text.
+- Never use abstract ideas such as "success" or "rivalry".
+  Choose a filmable scene that suggests the idea instead.
+
+Return ONLY valid JSON.
+
+Use exactly this structure:
+
+{{
+    "scenes": [
+        {{"sentence": "First spoken sentence.", "visual": "stadium crowd cheering"}},
+        {{"sentence": "Second spoken sentence.", "visual": "soccer ball grass"}}
+    ]
+}}
+"""
+
     # --------------------------------------------------------
     # Gemini request
     # --------------------------------------------------------
@@ -359,7 +466,7 @@ Use exactly this structure:
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    max_output_tokens=500
+                    max_output_tokens=1500 if with_visuals else 500
                 )
             )
 
@@ -476,6 +583,20 @@ Use exactly this structure:
         )
 
     # ========================================================
+    # Per-sentence visuals (optional)
+    # ========================================================
+
+    if with_visuals:
+
+        parsed = _parse_visual_scenes(data)
+
+        if parsed:
+            return parsed
+
+        # Gemini ignored the "scenes" structure. Fall through to the
+        # normal script/dialogue parsing below and return no visuals.
+
+    # ========================================================
     # Extract script
     # ========================================================
 
@@ -526,5 +647,8 @@ Use exactly this structure:
     # ========================================================
     # Return result
     # ========================================================
+
+    if with_visuals:
+        return script_text, dialogue, []
 
     return script_text, dialogue

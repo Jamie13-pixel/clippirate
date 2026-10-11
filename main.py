@@ -330,6 +330,21 @@ def projects(request: Request):
     return {"projects": [dict(row) for row in project_rows]}
 
 
+def align_visual_hints(orig_sentences, visuals, final_sentences):
+    """One footage search phrase per final sentence.
+
+    Gemini writes a phrase for each sentence it generates. If quality control
+    changed the script, the phrases are spread proportionally instead.
+    """
+    visuals = [v for v in (visuals or [])]
+    if not visuals or not final_sentences:
+        return []
+    if len(visuals) == len(final_sentences) and [s.strip() for s in orig_sentences] == final_sentences:
+        return visuals
+    n = len(visuals)
+    return [visuals[min(int(i * n / len(final_sentences)), n - 1)] for i in range(len(final_sentences))]
+
+
 # Keep references to background tasks so they are not garbage-collected mid-run.
 _background_tasks: set = set()
 
@@ -342,7 +357,9 @@ async def process_video_job(job_id: str, user_id: str, topic: str, settings: dic
     cost = settings["credit_cost"]
     try:
         print(f"[JOB {job_id}] Starting script generation...", flush=True)
-        script_text, dialogue = await asyncio.to_thread(generate_script, topic, settings["duration"])
+        script_text, orig_sentences, visuals = await asyncio.to_thread(
+            generate_script, topic, settings["duration"], True
+        )
         if not script_text:
             raise RuntimeError("Script generator returned an empty script.")
         print(f"[JOB {job_id}] Script generated: {len(script_text.split())} words", flush=True)
@@ -373,6 +390,9 @@ async def process_video_job(job_id: str, user_id: str, topic: str, settings: dic
             raise RuntimeError("Quality-controlled script contains no dialogue.")
         print(f"[JOB {job_id}] Dialogue lines: {len(dialogue)}", flush=True)
 
+        scene_hints = align_visual_hints(orig_sentences, visuals, [line for _, line in dialogue])
+        print(f"[JOB {job_id}] Visual hints: {scene_hints}", flush=True)
+
         print(f"[JOB {job_id}] Starting TTS...", flush=True)
         timeline = await create_dialogue_voice(
             dialogue,
@@ -400,6 +420,7 @@ async def process_video_job(job_id: str, user_id: str, topic: str, settings: dic
                 pixabay_key=pixabay_key,
                 pexels_key=pixabay_key,
                 captions=settings["captions"],
+                visual_hints=scene_hints,
             )
 
         # .remote() blocks, so run it in a worker thread to keep the event loop free.

@@ -29,6 +29,7 @@ def build_video_modal(
     pexels_key: str = "",
     pixabay_key: str = "",
     captions: bool = True,
+    visual_hints: list = None,
 ):
     final_key = (pixabay_key or pexels_key or os.getenv("PIXABAY_API_KEY", "")).strip()
     os.environ["PIXABAY_API_KEY"] = final_key
@@ -52,6 +53,7 @@ def build_video_modal(
             timeline=timeline,
             aspect_ratio=aspect_ratio,
             captions=captions,
+            visual_hints=visual_hints,
             pixabay_key=final_key,
         )
         with open(result, "rb") as f:
