@@ -1002,20 +1002,20 @@ async def process_video_job(
 
         with open(audio_file, "rb") as f:
             audio_bytes = f.read()
+            
+        print(f"DEBUG: PIXABAY_KEY present? {bool(os.getenv('PIXABAY_API_KEY'))}")
 
+        pixabay_key = os.getenv("PIXABAY_API_KEY", "").strip()
+        print(f"[MAIN] Sending Pixabay key len={len(pixabay_key)} to Modal")
         video_bytes = build_video_modal.remote(
-            audio_file_bytes=audio_bytes,
-            output_filename=os.path.basename(video_file),
+            audio_bytes=audio_bytes,
             topic=topic,
-            script_text=script_text,
+            script_text=script,
             timeline=timeline,
-            video_style=settings.get("video_style", "viral"),
-            aspect_ratio=settings.get("aspect_ratio", "9:16"),
-            captions=settings.get("captions", True),
-            target_duration=float(settings.get("duration", 30)),
-            pexels_key=os.getenv("PEXELS_API_KEY", ""),
+            aspect_ratio=aspect_ratio,
+            pixabay_key=pixabay_key,
+            pexels_key=pixabay_key,  # send to both for safety
         )
-
         with open(video_file, "wb") as f:
             f.write(video_bytes)
 

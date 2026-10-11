@@ -2,37 +2,64 @@ import os
 import time
 import requests
 
+def _query_pixabay(query, count, orientation=None):
+    api_key = os.getenv("PIXABAY_API_KEY", "")
+    if not api_key:
+        print("[stock_footage] ERROR: PIXABAY_API_KEY is empty!")
+        return []
 
-def _headers():
-    return {"Authorization": os.environ["PEXELS_API_KEY"]}
-
-
-def _query_pexels(query, count, orientation=None):
-    url = "https://api.pexels.com/videos/search"
+    # Correct Pixabay endpoint
+    url = "https://pixabay.com/api/videos/"
     params = {
-        "query": query,
-        "orientation": orientation,
+        "key": api_key, # <-- key in params, not header
+        "q": query,
         "per_page": count,
+        "safesearch": "true",
+        "order": "popular"
     }
-    response = requests.get(url, headers=_headers(), params=params, timeout=15)
-    response.raise_for_status()
-    return response.json().get("videos", [])
 
+    print(f"[stock_footage] Searching Pixabay: q='{query}'")
+
+    response = requests.get(url, params=params, timeout=15)
+    print(f"[stock_footage] Pixabay status: {response.status_code}")
+
+    if response.status_code!= 200:
+        print(f"[stock_footage] Error body: {response.text[:300]}")
+        return []
+
+    data = response.json()
+    hits = data.get("hits", [])
+    print(f"[stock_footage] Found {len(hits)} hits")
+
+    # Convert Pixabay format to your expected format
+    videos = []
+    for hit in hits:
+        # Pixabay has videos->large->url
+        vids = hit.get("videos", {})
+        large = vids.get("large", {})
+        if large.get("url"):
+            videos.append({
+                "video_files": [
+                    {"width": 1280, "link": large["url"]},
+                    {"width": 640, "link": vids.get("medium", {}).get("url") or large["url"]}
+                ]
+            })
+    return videos
 
 def search_video_clips(query, count=1, aspect_ratio="4:3"):
     query = (query or "").strip() or "abstract background"
 
     try:
         orientation = "portrait" if aspect_ratio == "9:16" else "landscape"
-        videos = _query_pexels(query, count, orientation)
+        videos = _query_pixabay(query, count, orientation)
     except Exception as e:
-        print("[stock_footage] Pexels search failed for '" + query + "': " + str(e))
+        print("[stock_footage] Pixabay search failed for '" + query + "': " + str(e))
         videos = []
 
     if not videos:
         print("[stock_footage] No results for '" + query + "', falling back to generic footage")
         try:
-            videos = _query_pexels("abstract background", count, orientation)
+            videos = _query_pixabay("abstract background", count, orientation)
         except Exception as e:
             print("[stock_footage] Fallback search also failed: " + str(e))
             videos = []
@@ -41,11 +68,11 @@ def search_video_clips(query, count=1, aspect_ratio="4:3"):
     for video in videos:
         files = video["video_files"]
         pool_sorted = sorted(files, key=lambda f: f.get("width", 0))
-        chosen = pool_sorted[0]  # smallest file, keeps memory use low
+        chosen = pool_sorted[0] # smallest file
         clip_urls.append(chosen["link"])
 
+    print(f"[stock_footage] Returning {len(clip_urls)} clip URLs")
     return clip_urls
-
 
 def download_clip(url, dest_path, retries=3, timeout=60):
     last_error = None

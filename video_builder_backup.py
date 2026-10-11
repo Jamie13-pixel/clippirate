@@ -528,11 +528,11 @@ def build_video(
         # ASSEMBLE VIDEO
         # ========================================
 
-        if not scene_clips:
-            raise RuntimeError(
-                "No valid video clips were generated. "
-                "Check the stock footage API key and search results."
-            )
+        if not valid_clips:
+            print("WARNING: No Pexels clips found, using fallback color background")
+            from moviepy.editor import ColorClip
+            # Create a simple background clip
+            valid_clips = [ColorClip(size=(1080,1920), color=(15,15,15), duration=target_duration)]
 
         video = concatenate_videoclips(scene_clips, method="compose")
 
