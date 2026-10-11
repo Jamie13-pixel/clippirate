@@ -27,7 +27,13 @@ from slowapi import _rate_limit_exceeded_handler
 
 from tts import create_dialogue_voice
 from templates_service import get_templates, get_template
-from video_builder import build_video
+
+try:
+    from video_builder import build_video
+except Exception as e:
+    print(f"video_builder not needed on Render: {e}")
+    build_video = None
+
 from script_generator import generate_script
 from script_quality_control import quality_check_script
 
