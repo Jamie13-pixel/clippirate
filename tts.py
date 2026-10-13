@@ -2,7 +2,7 @@ import os
 import uuid
 import subprocess
 
-import edge_tts
+import elevenlabs
 from moviepy import AudioFileClip, concatenate_audioclips
 
 
@@ -12,16 +12,16 @@ from moviepy import AudioFileClip, concatenate_audioclips
 
 VOICE_MAPS = {
     "professional": {
-        "HOST": "en-US-GuyNeural",
-        "GUEST": "en-US-AriaNeural",
+        "HOST": "onwK4e9ZLuTAKqWW03F9",
+        "GUEST": "jB2lPb5DhAX6l1TLkKXy",
     },
     "energetic": {
-        "HOST": "en-US-ChristopherNeural",
-        "GUEST": "en-US-AvaNeural",
+        "HOST": "TX3LPaxmHKxFdv7VOQHJ",
+        "GUEST": "kPzsL2i3teMYv0FxEYQ6",
     },
     "calm": {
-        "HOST": "en-US-AndrewNeural",
-        "GUEST": "en-US-EmmaNeural",
+        "HOST": "C1npRmjB19a6yNkEucvx",
+        "GUEST": "yj30vwTGJxSHezdAGsv9",
     },
 }
 
@@ -37,7 +37,7 @@ async def _synthesize_line(
     voice,
     path
 ):
-    await edge_tts.Communicate(
+    await elevenlabs.Communicate(
         text,
         voice
     ).save(path)

@@ -347,12 +347,16 @@ REQUESTED DURATION:
 {duration} seconds
 
 TARGET WORD COUNT:
-Approximately {word_count} spoken words.
+{word_count} words minimum.
+
+IMPORTANT:
+The narration must contain AT LEAST {word_count} words.
+It may exceed the target by up to 15%.
 
 REQUIREMENTS:
 
-- Start with a strong hook.
-- Keep the viewer engaged.
+- Start with a strong hook in the first sentence.
+- Keep the viewer engaged from beginning to end.
 - Use natural spoken language.
 - Use short, clear sentences.
 - Make it suitable for text-to-speech.
@@ -364,8 +368,8 @@ REQUIREMENTS:
 - Do not include sound effects.
 - Do not include production instructions.
 - Do not mention AI.
-- End naturally.
-- Keep the narration close to the requested word count.
+- End with a memorable conclusion or takeaway.
+- Never return fewer than {word_count} words.
 
 Return ONLY valid JSON.
 

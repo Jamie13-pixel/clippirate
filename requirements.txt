@@ -12,3 +12,4 @@ edge-tts
 email-validator
 google-genai
 modal
+elevenlabs-2.72.0
