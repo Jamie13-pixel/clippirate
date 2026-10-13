@@ -356,15 +356,31 @@ def make_text_image(text, W, H):
 # --------------------------------------------------------------------------
 def pick_video_url(hit):
     videos = hit.get("videos") or {}
-    for size in VIDEO_SIZE_ORDER:
-        url = (videos.get(size) or {}).get("url")
-        if url:
-            return url
-    return None
+
+    best_url = None
+    best_pixels = 0
+
+    for data in videos.values():
+        try:
+            width = int(data.get("width", 0))
+            height = int(data.get("height", 0))
+            pixels = width * height
+
+            if data.get("url") and pixels > best_pixels:
+                best_pixels = pixels
+                best_url = data["url"]
+        except Exception:
+            pass
+
+    return best_url
 
 
 def download_to_temp(url, suffix, timeout=30):
-    r = requests.get(url, timeout=timeout)
+    r = requests.get(
+        url,
+        timeout=timeout,
+        stream=True,
+    )
     r.raise_for_status()
     path = os.path.join(tempfile.gettempdir(), f"pb-{uuid.uuid4().hex}{suffix}")
     with open(path, "wb") as f:
@@ -392,15 +408,24 @@ class PixabayClient:
             if kind == "video":
                 r = requests.get(
                     "https://pixabay.com/api/videos/",
-                    params={"key": self.key, "q": q, "per_page": 10, "safesearch": "true"},
-                    timeout=15,
+                    params={
+                        "key": self.key,
+                        "q": q,
+                        "per_page": 50,
+                        "safesearch": "true",
+                    timeout=15
+
                 )
             else:
                 r = requests.get(
                     "https://pixabay.com/api/",
                     params={
-                        "key": self.key, "q": q, "image_type": "photo", "per_page": 10,
-                        "orientation": "vertical", "safesearch": "true",
+                        "key": self.key,
+                        "q": q,
+                        "image_type": "photo",
+                        "per_page": 50,
+                        "orientation": "vertical" if portrait else "horizontal",
+                        "safesearch": "true",
                     },
                     timeout=15,
                 )
@@ -424,7 +449,11 @@ class PixabayClient:
     def fetch(self, queries, scene_dur, portrait):
         """Return ('video'|'image', path) or None."""
         for q in queries:
-            hits = self._search("video", q)
+            hits = self._search(
+                "image",
+                q,
+            )
+
             hits = sorted(hits, key=lambda h: 0 if (h.get("duration") or 0) >= scene_dur else 1)
             for h in hits:
                 if not self._claim(("v", h.get("id"))):
@@ -549,7 +578,7 @@ def build_video(
                 return None
 
         if key:
-            with ThreadPoolExecutor(max_workers=4) as ex:
+            with ThreadPoolExecutor(max_workers=6) as ex:
                 results = list(ex.map(safe_fetch, jobs))
         else:
             print("No Pixabay key -> plain colour background")
@@ -593,9 +622,12 @@ def build_video(
         temp_audio = os.path.join(tempfile.gettempdir(), f"tmp-audio-{uuid.uuid4().hex}.m4a")
         final.write_videofile(
             out,
-            fps=24,
+            fps=30,
             codec="libx264",
             audio_codec="aac",
+            bitrate="5000k",
+            preset="medium",
+            threads=2,
             temp_audiofile=temp_audio,
             remove_temp=True,
             logger=None,

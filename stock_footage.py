@@ -67,8 +67,13 @@ def search_video_clips(query, count=1, aspect_ratio="4:3"):
     clip_urls = []
     for video in videos:
         files = video["video_files"]
-        pool_sorted = sorted(files, key=lambda f: f.get("width", 0))
-        chosen = pool_sorted[0] # smallest file
+        pool_sorted = sorted(
+            files,
+            key=lambda f: f.get("width", 0),
+            reverse=True,
+        )
+
+        chosen = pool_sorted[0]
         clip_urls.append(chosen["link"])
 
     print(f"[stock_footage] Returning {len(clip_urls)} clip URLs")

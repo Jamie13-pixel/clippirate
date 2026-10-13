@@ -282,6 +282,7 @@ async def create_dialogue_voice(
                     "text": text,
                     "start": current_time,
                     "duration": duration,
+                    "end": current_time + duration,
                 }
             )
 

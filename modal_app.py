@@ -19,7 +19,12 @@ image = (
 )
 
 
-@app.function(image=image, timeout=600, memory=2048)
+@app.function(
+    image=image,
+    timeout=600,
+    memory=4096,
+)
+
 def build_video_modal(
     audio_bytes: bytes,
     topic: str,
