@@ -63,106 +63,40 @@ async def _synthesize_line(text, voice, path):
 # AUDIO SPEED ADJUSTMENT
 # ============================================================
 
-def _adjust_audio_duration(
-    input_file: str,
-    output_file: str,
-    target_duration: float
-):
-    """
-    Adjust the audio duration to approximately target_duration.
-
-    Uses FFmpeg atempo so pitch remains natural.
-
-    atempo supports values between 0.5 and 2.0.
-    Multiple filters are chained when necessary.
-    """
-
+def _adjust_audio_duration(input_file: str, output_file: str, target_duration: float):
+    """Fit the narration to target_duration (atempo) and normalise loudness."""
     audio = AudioFileClip(input_file)
-
-    actual_duration = float(
-        audio.duration
-    )
-
+    actual_duration = float(audio.duration)
     audio.close()
 
     if actual_duration <= 0:
-        raise ValueError(
-            "Generated audio has zero duration."
-        )
-
-    # If already extremely close, simply copy the file.
-    difference = abs(
-        actual_duration - target_duration
-    )
-
-    if difference < 0.15:
-        return input_file
-
-    # FFmpeg atempo changes speed.
-    #
-    # To make 20 seconds become 30 seconds:
-    #
-    # speed_factor = 20 / 30 = 0.6667
-    #
-    # Slower audio means a factor below 1.
-    speed_factor = (
-        actual_duration / target_duration
-    )
+        raise ValueError("Generated audio has zero duration.")
 
     filters = []
 
-    remaining = speed_factor
+    # Only change speed when the length is meaningfully off.
+    if abs(actual_duration - target_duration) >= 0.15:
+        remaining = actual_duration / target_duration
+        while remaining < 0.5:
+            filters.append("atempo=0.5")
+            remaining /= 0.5
+        while remaining > 2.0:
+            filters.append("atempo=2.0")
+            remaining /= 2.0
+        filters.append(f"atempo={remaining:.8f}")
 
-    # FFmpeg atempo supports 0.5 - 2.0.
-    #
-    # Chain filters when the calculated value
-    # falls outside that range.
-
-    while remaining < 0.5:
-        filters.append("atempo=0.5")
-        remaining /= 0.5
-
-    while remaining > 2.0:
-        filters.append("atempo=2.0")
-        remaining /= 2.0
-
-    filters.append(
-        f"atempo={remaining:.8f}"
-    )
-
-    filter_chain = ",".join(
-        filters
-    )
+    # Bring the voice to a normal short-video loudness.
+    filters.append("loudnorm=I=-16:TP=-1.5:LRA=11")
 
     command = [
-        "ffmpeg",
-        "-y",
-        "-i",
-        input_file,
-        "-filter:a",
-        filter_chain,
-        "-vn",
-        "-c:a",
-        "libmp3lame",
-        "-q:a",
-        "2",
+        "ffmpeg", "-y", "-i", input_file,
+        "-filter:a", ",".join(filters),
+        "-vn", "-c:a", "libmp3lame", "-q:a", "2",
         output_file,
     ]
-
-    result = subprocess.run(
-        command,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        text=True,
-    )
-
+    result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     if result.returncode != 0:
-
-        raise RuntimeError(
-            "FFmpeg failed while adjusting "
-            f"voiceover duration:\n{result.stderr}"
-        )
-
+        raise RuntimeError(f"FFmpeg failed while adjusting voiceover:\n{result.stderr}")
     return output_file
 
 
@@ -367,9 +301,9 @@ async def create_dialogue_voice(
             )
 
             # Replace output with adjusted audio.
-            os.replace(
-                adjusted_file,
-                output_file
+                    adjusted_file = os.path.join(temp_dir, f"adjusted_{uuid.uuid4().hex}.mp3")
+                    _adjust_audio_duration(combined_file, adjusted_file, natural_duration)
+                    os.replace(adjusted_file, output_file)
             )
 
             # Update timeline proportionally.
