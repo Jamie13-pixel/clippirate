@@ -301,10 +301,10 @@ async def create_dialogue_voice(
             )
 
             # Replace output with adjusted audio.
-                    adjusted_file = os.path.join(temp_dir, f"adjusted_{uuid.uuid4().hex}.mp3")
-                    _adjust_audio_duration(combined_file, adjusted_file, natural_duration)
-                    os.replace(adjusted_file, output_file)
-            )
+            adjusted_file = os.path.join(temp_dir, f"adjusted_{uuid.uuid4().hex}.mp3")
+            _adjust_audio_duration(combined_file, adjusted_file, natural_duration)
+            os.replace(adjusted_file, output_file)
+            
 
             # Update timeline proportionally.
             if natural_duration > 0:
