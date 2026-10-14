@@ -412,7 +412,7 @@ class PixabayClient:
                         "key": self.key,
                         "q": q,
                         "per_page": 50,
-                        "safesearch": "true",
+                        "safesearch": "true"},
                     timeout=15
 
                 )
