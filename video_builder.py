@@ -8,14 +8,14 @@ from concurrent.futures import ThreadPoolExecutor
 from math import ceil
 
 import requests
-from moviepy.editor import (
+from moviepy import (
     AudioFileClip,
     ColorClip,
     CompositeVideoClip,
     ImageClip,
     VideoFileClip,
 )
-from moviepy.video.fx.all import crop, loop
+from moviepy.video.fx import Crop, Loop
 from PIL import Image, ImageDraw, ImageFont
 
 ASPECT_SIZES = {
@@ -55,7 +55,7 @@ FONT_PATH = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
 
 # A scene is a run of sentences until it is at least this long (seconds).
 SCENE_TARGET_SECONDS = float(os.getenv("SCENE_TARGET_SECONDS", "3.0"))
-CAPTION_MAX_WORDS = int(os.getenv("CAPTION_MAX_WORDS", "6"))
+CAPTION_MAX_WORDS = int(os.getenv("CAPTION_MAX_WORDS", "4"))
 
 
 # --------------------------------------------------------------------------
@@ -398,8 +398,8 @@ class PixabayClient:
         self._used = set()
         self._cache = {}
 
-    def _search(self, kind, q):
-        cache_key = (kind, q)
+    def _search(self, kind, q, portrait=False):
+        cache_key = (kind, q, portrait)
         with self._lock:
             if cache_key in self._cache:
                 return self._cache[cache_key]
@@ -413,11 +413,10 @@ class PixabayClient:
                         "q": q,
                         "per_page": 50,
                         "safesearch": "true",
-                        "video_type": "film",
-                        "min_height": 1080,
+                        "video_type": "film",  # real footage, no vector animations
+                        "min_height": 720,
                     },
-                    timeout=15
-
+                    timeout=15,
                 )
             else:
                 r = requests.get(
@@ -452,10 +451,7 @@ class PixabayClient:
     def fetch(self, queries, scene_dur, portrait):
         """Return ('video'|'image', path) or None."""
         for q in queries:
-            hits = self._search(
-                "image",
-                q,
-            )
+            hits = self._search("video", q, portrait)
 
             hits = sorted(hits, key=lambda h: 0 if (h.get("duration") or 0) >= scene_dur else 1)
             for h in hits:
@@ -474,7 +470,7 @@ class PixabayClient:
                     print(f"  download err {e}")
 
         for q in queries:
-            for h in self._search("image", q):
+            for h in self._search("image", q, portrait):
                 if not self._claim(("i", h.get("id"))):
                     continue
                 url = h.get("largeImageURL") or h.get("webformatURL")
@@ -496,17 +492,19 @@ def fit_cover(clip, W, H):
     scale = max(W / clip.w, H / clip.h)
     new_w = max(W, ceil(clip.w * scale))
     new_h = max(H, ceil(clip.h * scale))
-    clip = clip.resize(newsize=(new_w, new_h))
-    return crop(clip, x_center=new_w / 2, y_center=new_h / 2, width=W, height=H)
+    clip = clip.resized(new_size=(new_w, new_h))
+    return clip.with_effects(
+        [Crop(x_center=new_w / 2, y_center=new_h / 2, width=W, height=H)]
+    )
 
 
 def fit_duration(clip, duration):
     """Loop short clips, trim long ones."""
     if clip.duration is None:
-        return clip.set_duration(duration)
+        return clip.with_duration(duration)
     if clip.duration < duration:
-        return loop(clip, duration=duration)
-    return clip.subclip(0, duration)
+        return clip.with_effects([Loop(duration=duration)])
+    return clip.subclipped(0, duration)
 
 
 def make_scene_clip(media, scene_dur, W, H, offset=0.0):
@@ -514,10 +512,10 @@ def make_scene_clip(media, scene_dur, W, H, offset=0.0):
     if kind == "video":
         clip = VideoFileClip(path).without_audio()
         if offset and clip.duration and clip.duration > scene_dur + offset:
-            clip = clip.subclip(offset)
+            clip = clip.subclipped(offset)
         clip = fit_duration(clip, scene_dur)
     else:
-        clip = ImageClip(path).set_duration(scene_dur)
+        clip = ImageClip(path).with_duration(scene_dur)
     return fit_cover(clip, W, H)
 
 
@@ -601,9 +599,9 @@ def build_video(
             except Exception as e:
                 print(f"scene {i + 1} clip err {e}")
                 clip = ColorClip(size=(W, H), color=(25, 25, 80), duration=scene_dur)
-            clips.append(clip.set_start(start))
+            clips.append(clip.with_start(start))
 
-        clips.append(ColorClip(size=(W, H), color=(0, 0, 0), duration=duration).set_opacity(0.35))
+        clips.append(ColorClip(size=(W, H), color=(0, 0, 0), duration=duration).with_opacity(0.35))
 
         # 3) Captions
         n_caps = 0
@@ -615,13 +613,13 @@ def build_video(
                 if not img_path:
                     continue
                 temp_files.append(img_path)
-                ic = ImageClip(img_path).set_duration(end - start).set_start(start)
+                ic = ImageClip(img_path).with_duration(end - start).with_start(start)
                 y = min(int(H * 0.68), H - ic.h - 60)
-                clips.append(ic.set_position(("center", max(0, y))))
+                clips.append(ic.with_position(("center", max(0, y))))
                 n_caps += 1
         print(f"Captions added: {n_caps}")
 
-        final = CompositeVideoClip(clips, size=(W, H)).set_audio(audio).set_duration(duration)
+        final = CompositeVideoClip(clips, size=(W, H)).with_audio(audio).with_duration(duration)
         temp_audio = os.path.join(tempfile.gettempdir(), f"tmp-audio-{uuid.uuid4().hex}.m4a")
         final.write_videofile(
             out,

@@ -20,8 +20,8 @@ VOICE_MAPS = {
         "GUEST": "kPzsL2i3teMYv0FxEYQ6",
     },
     "calm": {
-        "HOST": "C1npRmjB19a6yNkEucvx",
-        "GUEST": "yj30vwTGJxSHezdAGsv9",
+        "HOST": "ev2kMR9ZJZZsemuogS5u",
+        "GUEST": "bD9maNcCuQQS75DGuteM",
     },
 }
 
