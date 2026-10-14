@@ -3,7 +3,7 @@ import hmac
 import os
 import secrets
 import sqlite3
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -31,6 +31,22 @@ FREE_CREDITS = int(
 
 PRO_CREDITS = int(
     os.getenv("PRO_MONTHLY_CREDITS", "500")
+)
+
+
+# ============================================================
+# SUBSCRIPTION PERIOD
+# ============================================================
+
+# Length of one paid period. Each successful payment buys this many days.
+SUBSCRIPTION_DAYS = int(
+    os.getenv("SUBSCRIPTION_DAYS", "30")
+)
+
+# Paid users who existed before expiry was introduced get at least
+# this many days before they are moved back to the free plan.
+LEGACY_GRACE_DAYS = int(
+    os.getenv("LEGACY_GRACE_DAYS", "7")
 )
 
 
@@ -134,6 +150,33 @@ def _next_month_start():
         month=today.month + 1,
         day=1
     )
+
+
+def _parse_dt(value):
+
+    """Parse a stored timestamp (naive values are treated as UTC)."""
+
+    if not value:
+
+        return None
+
+    try:
+
+        parsed = datetime.fromisoformat(
+            str(value)
+        )
+
+    except ValueError:
+
+        return None
+
+    if parsed.tzinfo is None:
+
+        parsed = parsed.replace(
+            tzinfo=timezone.utc
+        )
+
+    return parsed
 
 
 # ============================================================
@@ -363,6 +406,11 @@ def init_db():
                 "ALTER TABLE users ADD COLUMN "
                 "daily_generation_limit INTEGER "
                 "NOT NULL DEFAULT 5",
+
+            # UTC date (YYYY-MM-DD) of the last daily free-credit reset.
+            "credits_reset_on":
+                "ALTER TABLE users ADD COLUMN "
+                "credits_reset_on TEXT",
         }
 
         for column, sql in migrations.items():
@@ -370,6 +418,81 @@ def init_db():
             if column not in columns:
 
                 c.execute(sql)
+
+        # ----------------------------------------------------
+        # GIVE EXISTING PAID USERS AN EXPIRY DATE
+        # ----------------------------------------------------
+        #
+        # Paid users created before expiry existed have no
+        # subscription_expires_at. Base it on their last payment, but
+        # never earlier than LEGACY_GRACE_DAYS from now so nobody is
+        # downgraded by surprise the moment this is deployed.
+        #
+
+        now_utc = datetime.now(
+            timezone.utc
+        )
+
+        paid_without_expiry = c.execute(
+            """
+            SELECT id, subscription_started_at
+            FROM users
+            WHERE
+                plan != 'free'
+                AND subscription_expires_at IS NULL
+            """
+        ).fetchall()
+
+        for row in paid_without_expiry:
+
+            last_payment = c.execute(
+                """
+                SELECT updated_at
+                FROM payments
+                WHERE
+                    user_id = ?
+                    AND status = 'paid'
+                ORDER BY updated_at DESC
+                LIMIT 1
+                """,
+                (
+                    row["id"],
+                )
+            ).fetchone()
+
+            base = (
+                _parse_dt(
+                    last_payment["updated_at"]
+                    if last_payment
+                    else None
+                )
+                or _parse_dt(
+                    row["subscription_started_at"]
+                )
+                or now_utc
+            )
+
+            expires = max(
+                base + timedelta(days=SUBSCRIPTION_DAYS),
+                now_utc + timedelta(days=LEGACY_GRACE_DAYS),
+            )
+
+            c.execute(
+                """
+                UPDATE users
+
+                SET
+                    subscription_expires_at = ?,
+                    reset_date = ?
+
+                WHERE id = ?
+                """,
+                (
+                    expires.isoformat(),
+                    expires.date().isoformat(),
+                    row["id"],
+                )
+            )
 
         # ----------------------------------------------------
         # SYNCHRONIZE EXISTING USERS WITH THEIR PLAN
@@ -585,7 +708,7 @@ def get_user(user_id):
 
     with _conn() as c:
 
-        return c.execute(
+        user = c.execute(
             """
             SELECT *
             FROM users
@@ -595,6 +718,11 @@ def get_user(user_id):
                 user_id,
             )
         ).fetchone()
+
+        return _refresh_user(
+            c,
+            user
+        )
 
 
 # ============================================================
@@ -662,7 +790,7 @@ def get_user_by_session(token):
 
     with _conn() as c:
 
-        return c.execute(
+        user = c.execute(
             """
             SELECT u.*
 
@@ -680,6 +808,11 @@ def get_user_by_session(token):
                 now_iso(),
             )
         ).fetchone()
+
+        return _refresh_user(
+            c,
+            user
+        )
 
 
 def delete_session(token):
@@ -706,6 +839,198 @@ def delete_session(token):
 
 
 # ============================================================
+# SUBSCRIPTION EXPIRY
+# ============================================================
+
+def _expire_subscription(
+    c,
+    user
+):
+
+    """
+    Move a paid user back to the free plan once their paid period
+    has ended.
+
+    Runs lazily whenever the user is loaded. The WHERE clause only
+    matches if the expiry date is unchanged, so a payment that
+    renews the subscription at the same moment is never overwritten.
+    """
+
+    if user is None:
+
+        return user
+
+    plan = str(
+        user["plan"] or "free"
+    ).lower()
+
+    if plan == "free":
+
+        return user
+
+    expires_at = _parse_dt(
+        user["subscription_expires_at"]
+    )
+
+    if (
+        expires_at is None
+        or expires_at > datetime.now(timezone.utc)
+    ):
+
+        return user
+
+    free = PLAN_CONFIG["free"]
+
+    tomorrow = (
+        datetime.now(timezone.utc).date()
+        + timedelta(days=1)
+    ).isoformat()
+
+    c.execute(
+        """
+        UPDATE users
+
+        SET
+            plan = 'free',
+            daily_generation_limit = ?,
+            monthly_limit = ?,
+            credits = ?,
+            subscription_status = 'expired',
+            credits_reset_on = ?,
+            reset_date = ?
+
+        WHERE
+            id = ?
+            AND plan = ?
+            AND subscription_expires_at = ?
+        """,
+        (
+            free["daily_limit"],
+            free["credits"],
+            free["credits"],
+            today_iso(),
+            tomorrow,
+            user["id"],
+            user["plan"],
+            user["subscription_expires_at"],
+        )
+    )
+
+    return c.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE id = ?
+        """,
+        (
+            user["id"],
+        )
+    ).fetchone()
+
+
+def _refresh_user(
+    c,
+    user
+):
+
+    """Apply subscription expiry, then the free daily credit reset."""
+
+    user = _expire_subscription(
+        c,
+        user
+    )
+
+    return _free_daily_reset(
+        c,
+        user
+    )
+
+
+# ============================================================
+# FREE PLAN DAILY CREDIT RESET
+# ============================================================
+
+def _free_daily_reset(
+    c,
+    user
+):
+
+    """
+    Free-plan users get their credits set back to the plan amount
+    once per UTC day.
+
+    The reset happens lazily whenever the user is loaded, so it
+    needs no scheduler and survives server restarts and sleeping
+    instances. The WHERE clause makes it atomic: concurrent
+    requests can never reset the same user twice in one day.
+    """
+
+    if user is None:
+
+        return user
+
+    plan = str(
+        user["plan"] or "free"
+    ).lower()
+
+    if plan != "free":
+
+        return user
+
+    today = today_iso()
+
+    if user["credits_reset_on"] == today:
+
+        return user
+
+    amount = PLAN_CONFIG["free"]["credits"]
+
+    tomorrow = (
+        datetime.now(timezone.utc).date()
+        + timedelta(days=1)
+    ).isoformat()
+
+    c.execute(
+        """
+        UPDATE users
+
+        SET
+            credits = ?,
+            monthly_limit = ?,
+            reset_date = ?,
+            credits_reset_on = ?
+
+        WHERE
+            id = ?
+            AND plan = 'free'
+            AND (
+                credits_reset_on IS NULL
+                OR credits_reset_on < ?
+            )
+        """,
+        (
+            amount,
+            amount,
+            tomorrow,
+            today,
+            user["id"],
+            today,
+        )
+    )
+
+    return c.execute(
+        """
+        SELECT *
+        FROM users
+        WHERE id = ?
+        """,
+        (
+            user["id"],
+        )
+    ).fetchone()
+
+
+# ============================================================
 # LEGACY CREDIT RESET
 # ============================================================
 
@@ -713,6 +1038,17 @@ def _reset_if_needed(
     c,
     user
 ):
+
+    # Free plan resets daily in _free_daily_reset(). Paid plans get
+    # their credits when a payment is made and keep them for the
+    # paid period, so only legacy rows without an expiry date use
+    # this monthly reset.
+    if (
+        str(user["plan"] or "free").lower() == "free"
+        or user["subscription_expires_at"]
+    ):
+
+        return user
 
     today = datetime.now(
         timezone.utc
@@ -783,6 +1119,11 @@ def reserve_credits(
         if not user:
 
             return False, None
+
+        user = _refresh_user(
+            c,
+            user
+        )
 
         user = _reset_if_needed(
             c,
@@ -925,6 +1266,26 @@ def set_plan(
 
     started_at = now_iso()
 
+    if plan == "free":
+
+        subscription_expires_at = None
+
+        next_reset = (
+            datetime.now(timezone.utc).date()
+            + timedelta(days=1)
+        ).isoformat()
+
+    else:
+
+        if not subscription_expires_at:
+
+            subscription_expires_at = (
+                datetime.now(timezone.utc)
+                + timedelta(days=SUBSCRIPTION_DAYS)
+            ).isoformat()
+
+        next_reset = subscription_expires_at[:10]
+
     with _conn() as c:
 
         c.execute(
@@ -945,7 +1306,9 @@ def set_plan(
 
                 subscription_started_at = ?,
 
-                subscription_expires_at = ?
+                subscription_expires_at = ?,
+
+                reset_date = ?
 
             WHERE id = ?
             """,
@@ -957,6 +1320,7 @@ def set_plan(
                 subscription_status,
                 started_at,
                 subscription_expires_at,
+                next_reset,
                 user_id,
             )
         )
@@ -1052,6 +1416,44 @@ def get_payment_by_reference(provider, provider_reference):
         ).fetchone()
 
 
+def _extended_expiry(
+    user,
+    plan
+):
+
+    """
+    Expiry date after a successful payment.
+
+    Renewing the same plan while it is still active adds a new
+    period on top of the remaining time. Anything else (first
+    purchase, expired plan, switching plans) starts a fresh period
+    from today.
+    """
+
+    now = datetime.now(
+        timezone.utc
+    )
+
+    base = now
+
+    if (
+        user is not None
+        and str(user["plan"] or "").lower() == plan.lower()
+    ):
+
+        current = _parse_dt(
+            user["subscription_expires_at"]
+        )
+
+        if current is not None and current > now:
+
+            base = current
+
+    return (
+        base + timedelta(days=SUBSCRIPTION_DAYS)
+    ).isoformat()
+
+
 def complete_payment(
     payment_id,
     provider_reference=None
@@ -1113,6 +1515,10 @@ def complete_payment(
         updated["user_id"],
         updated["plan"],
         subscription_status="active",
+        subscription_expires_at=_extended_expiry(
+            get_user(updated["user_id"]),
+            updated["plan"],
+        ),
     )
 
     return get_payment(payment_id)
@@ -1256,6 +1662,11 @@ def reserve_generation(
         if not user:
 
             return False, None
+
+        user = _refresh_user(
+            c,
+            user
+        )
 
         limit = plan_daily_limit(
             user
