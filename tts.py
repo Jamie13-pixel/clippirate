@@ -7,32 +7,115 @@ from moviepy import AudioFileClip, concatenate_audioclips
 
 
 # ============================================================
-# VOICE CONFIGURATION
+# ADVANCED VOICE CONFIGURATION
 # ============================================================
 
-VOICE_MAPS = {
-    "professional": {
-        "HOST": "onwK4e9ZLuTAKqWW03F9",
-        "GUEST": "jB2lPb5DhAX6l1TLkKXy",
-    },
-    "energetic": {
-        "HOST": "TX3LPaxmHKxFdv7VOQHJ",
-        "GUEST": "kPzsL2i3teMYv0FxEYQ6",
-    },
-    "calm": {
-        "HOST": "ev2kMR9ZJZZsemuogS5u",
-        "GUEST": "bD9maNcCuQQS75DGuteM",
-    },
+import random
+
+VOICE_PROFILES = {
+    "professional": [
+        "onwK4e9ZLuTAKqWW03F9",
+        "jB2lPb5DhAX6l1TLkKXy",
+    ],
+
+    "energetic": [
+        "TX3LPaxmHKxFdv7VOQHJ",
+        "kPzsL2i3teMYv0FxEYQ6",
+    ],
+
+    "calm": [
+        "ev2kMR9ZJZZsemuogS5u",
+        "bD9maNcCuQQS75DGuteM",
+    ],
 }
 
 DEFAULT_VOICE = "professional"
 
+VOICE_LIBRARY = {
+    "onwK4e9ZLuTAKqWW03F9": {
+        "name": "Professional Host",
+        "profile": "professional",
+    },
+
+    "jB2lPb5DhAX6l1TLkKXy": {
+        "name": "Professional Guest",
+        "profile": "professional",
+    },
+
+    "TX3LPaxmHKxFdv7VOQHJ": {
+        "name": "Energetic Host",
+        "profile": "energetic",
+    },
+
+    "kPzsL2i3teMYv0FxEYQ6": {
+        "name": "Energetic Guest",
+        "profile": "energetic",
+    },
+
+    "ev2kMR9ZJZZsemuogS5u": {
+        "name": "Calm Narrator",
+        "profile": "calm",
+    },
+
+    "bD9maNcCuQQS75DGuteM": {
+        "name": "Calm Storyteller",
+        "profile": "calm",
+    },
+}
+
+
+def get_random_voice(profile: str):
+    normalized_profile = (profile or DEFAULT_VOICE).lower()
+    available_voices = VOICE_PROFILES.get(
+        normalized_profile,
+        VOICE_PROFILES[DEFAULT_VOICE],
+    )
+    return random.choice(available_voices)
+
+
+def build_voice_map(profile: str):
+    normalized_profile = (profile or DEFAULT_VOICE).lower()
+    available_voices = VOICE_PROFILES.get(
+        normalized_profile,
+        VOICE_PROFILES[DEFAULT_VOICE],
+    )
+
+    host_voice = get_random_voice(normalized_profile)
+    guest_voice = get_random_voice(normalized_profile)
+
+    if len(available_voices) > 1:
+        attempts = 0
+        while guest_voice == host_voice and attempts < 10:
+            guest_voice = get_random_voice(normalized_profile)
+            attempts += 1
+
+    return {
+        "HOST": host_voice,
+        "GUEST": guest_voice,
+    }
+
+
+VOICE_MAPS = {
+    profile: build_voice_map(profile)
+    for profile in VOICE_PROFILES
+}
+
+
+def get_available_voices():
+    return [
+        {
+            "id": voice_id,
+            **meta,
+        }
+        for voice_id, meta in VOICE_LIBRARY.items()
+    ]
 
 # ============================================================
 # TTS SYNTHESIS
 # ============================================================
 
 _client = None
+
 
 def _get_client():
     global _client
@@ -46,12 +129,30 @@ def _get_client():
     return _client
 
 
+async def fetch_account_voices():
+    try:
+        voices = await _get_client().voices.get_all()
+
+        results = []
+
+        for voice in voices.voices:
+            results.append({
+                "id": voice.voice_id,
+                "name": voice.name,
+            })
+
+        return results
+
+    except Exception:
+        return []
+
+
 async def _synthesize_line(text, voice, path):
     audio = _get_client().text_to_speech.convert(
         voice_id=voice,
         text=text,
         model_id="eleven_multilingual_v2",
-        output_format="mp3_44100_128",
+        output_format="mp3_44100_64",
     )
     with open(path, "wb") as f:
         async for chunk in audio:
@@ -300,10 +401,10 @@ async def create_dialogue_voice(
                 target_duration
             )
 
-            # Replace output with adjusted audio.
-            adjusted_file = os.path.join(temp_dir, f"adjusted_{uuid.uuid4().hex}.mp3")
-            _adjust_audio_duration(combined_file, adjusted_file, natural_duration)
-            os.replace(adjusted_file, output_file)
+            os.replace(
+                adjusted_file,
+                output_file
+            )
             
 
             # Update timeline proportionally.
