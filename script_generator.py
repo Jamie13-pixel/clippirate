@@ -15,6 +15,12 @@ from google.genai import types
 # GEMINI CONFIGURATION
 # ============================================================
 
+FALLBACK_MODELS = [
+    m.strip()
+    for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.1-flash-lite").split(",")
+    if m.strip()
+]
+
 DEFAULT_MODEL = os.getenv(
     "GEMINI_MODEL",
     "gemini-3.5-flash-lite"

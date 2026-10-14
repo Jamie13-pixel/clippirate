@@ -2,7 +2,7 @@ import os
 import uuid
 import subprocess
 
-import elevenlabs
+from elevenlabs.client import AsyncElevenLabs
 from moviepy import AudioFileClip, concatenate_audioclips
 
 
@@ -32,15 +32,31 @@ DEFAULT_VOICE = "professional"
 # TTS SYNTHESIS
 # ============================================================
 
-async def _synthesize_line(
-    text,
-    voice,
-    path
-):
-    await elevenlabs.Communicate(
-        text,
-        voice
-    ).save(path)
+_client = None
+
+def _get_client():
+    global _client
+    if _client is None:
+        key = os.getenv("ELEVENLABS_API_KEY")
+        if not key:
+            raise RuntimeError(
+                "ELEVENLABS_API_KEY is not configured on the server."
+            )
+        _client = AsyncElevenLabs(api_key=key)
+    return _client
+
+
+async def _synthesize_line(text, voice, path):
+    audio = _get_client().text_to_speech.convert(
+        voice_id=voice,
+        text=text,
+        model_id="eleven_multilingual_v2",
+        output_format="mp3_44100_128",
+    )
+    with open(path, "wb") as f:
+        async for chunk in audio:
+            if chunk:
+                f.write(chunk)
 
 
 # ============================================================
@@ -368,6 +384,7 @@ async def create_dialogue_voice(
 
                     entry["start"] *= scale
                     entry["duration"] *= scale
+                    entry["end"] = entry["start"] + entry["duration"]
 
             return timeline
 
