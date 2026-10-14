@@ -412,7 +412,10 @@ class PixabayClient:
                         "key": self.key,
                         "q": q,
                         "per_page": 50,
-                        "safesearch": "true"},
+                        "safesearch": "true",
+                        "video_type": "film",
+                        "min_height": 1080,
+                    },
                     timeout=15
 
                 )

@@ -75,12 +75,17 @@ from db import (
     update_project,
     list_projects,
     public_user,
+    DB_PATH,
 )
 
 APP_NAME = "Clip Pirate.ai"
 SESSION_COOKIE = "clip_pirate_session"
 BASE_DIR = Path(__file__).resolve().parent
 STATIC_DIR = BASE_DIR / "static"
+# Persistent data (videos, audio, database). On Render, point DATA_DIR at the
+# mount path of a persistent disk, e.g. /var/data. The database file itself
+# is DB_PATH from db.py, which also lives under DATA_DIR.
+DATA_DIR = Path(os.getenv("DATA_DIR") or (BASE_DIR / "data")).resolve()
 
 # Must match modal.App("...") in modal_app.py, and the app must be deployed:
 #   modal deploy modal_app.py
@@ -145,11 +150,29 @@ def report_payment_configuration():
 
 report_payment_configuration()
 
-os.makedirs(BASE_DIR / "data" / "videos", exist_ok=True)
-os.makedirs(BASE_DIR / "data" / "audio", exist_ok=True)
-os.makedirs(BASE_DIR / "data" / "temp_clips", exist_ok=True)
 
-app.mount("/videos", StaticFiles(directory=BASE_DIR / "data" / "videos"), name="videos")
+def report_storage():
+    """Log where data lives and how much is in it, so a wipe is obvious in the logs."""
+    try:
+        with sqlite3.connect(DB_PATH) as conn:
+            users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
+            paid = conn.execute("SELECT COUNT(*) FROM users WHERE plan != 'free'").fetchone()[0]
+    except Exception as exc:
+        users = paid = f"unknown ({exc})"
+    print(f"[STORAGE] database={DB_PATH} data_dir={DATA_DIR} users={users} paid_users={paid}", flush=True)
+    if os.getenv("RENDER", "").lower() == "true" and not os.getenv("DATA_DIR"):
+        print(
+            "[STORAGE] WARNING: DATA_DIR is not set. On Render the default filesystem is erased on "
+            "every deploy, restart and spin-down, so users, credits, payments and videos will be "
+            "lost. Attach a persistent disk and set DATA_DIR to its mount path.",
+            flush=True,
+        )
+
+os.makedirs(DATA_DIR / "videos", exist_ok=True)
+os.makedirs(DATA_DIR / "audio", exist_ok=True)
+os.makedirs(DATA_DIR / "temp_clips", exist_ok=True)
+
+app.mount("/videos", StaticFiles(directory=DATA_DIR / "videos"), name="videos")
 
 
 @app.get("/download/{filename}")
@@ -160,7 +183,7 @@ def download_video(request: Request, filename: str):
         raise HTTPException(status_code=400, detail="Invalid filename.")
     if not safe_name.lower().endswith(".mp4"):
         raise HTTPException(status_code=400, detail="Only MP4 video files can be downloaded.")
-    video_path = BASE_DIR / "data" / "videos" / safe_name
+    video_path = DATA_DIR / "videos" / safe_name
     if not video_path.is_file():
         raise HTTPException(status_code=404, detail="Video not found.")
     return FileResponse(
@@ -174,6 +197,7 @@ def download_video(request: Request, filename: str):
 app.mount("/app", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 init_db()
+report_storage()
 
 
 class SignupRequest(BaseModel):
@@ -352,8 +376,8 @@ _background_tasks: set = set()
 async def process_video_job(job_id: str, user_id: str, topic: str, settings: dict, project_id: str):
     set_status(job_id, JobStatus.PROCESSING)
     file_stem = safe_filename(topic)
-    audio_file = BASE_DIR / "data" / "audio" / f"{file_stem}.mp3"
-    video_file = BASE_DIR / "data" / "videos" / f"{file_stem}.mp4"
+    audio_file = DATA_DIR / "audio" / f"{file_stem}.mp3"
+    video_file = DATA_DIR / "videos" / f"{file_stem}.mp4"
     cost = settings["credit_cost"]
     try:
         print(f"[JOB {job_id}] Starting script generation...", flush=True)
@@ -778,7 +802,7 @@ def initialize_paystack_payment(request: Request, payload: dict):
         fail_payment(payment_id)
         raise HTTPException(status_code=502, detail="Paystack returned an incomplete transaction.")
 
-    with sqlite3.connect(BASE_DIR / "data" / "clip_pirate.db") as conn:
+    with sqlite3.connect(DB_PATH) as conn:
         conn.execute(
             "UPDATE payments SET provider_reference = ?, updated_at = datetime('now') WHERE id = ?",
             (reference, payment_id),

@@ -11,9 +11,17 @@ from pathlib import Path
 # DATABASE CONFIGURATION
 # ============================================================
 
+# All persistent data (database, videos) lives under DATA_DIR.
+# On Render, set DATA_DIR to the mount path of a persistent disk,
+# otherwise everything is erased on each deploy / restart.
+DATA_DIR = os.getenv(
+    "DATA_DIR",
+    "data"
+)
+
 DB_PATH = os.getenv(
     "CLIP_PIRATE_DB",
-    "data/clip_pirate.db"
+    os.path.join(DATA_DIR, "clip_pirate.db")
 )
 
 

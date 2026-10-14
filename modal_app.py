@@ -12,8 +12,8 @@ image = (
     modal.Image.debian_slim(python_version="3.11")
     .apt_install("imagemagick", "fonts-dejavu-core")  # fonts needed by the PIL captions
     .env({"IMAGEMAGICK_BINARY": "/usr/bin/convert"})
-    # moviepy 1.0.3 needs Pillow < 10 (Image.ANTIALIAS was removed) and numpy < 2
-    .pip_install("moviepy==1.0.3", "requests", "Pillow==9.5.0", "numpy<2")
+    #moviepy>=2.0,<3 needs Pillow < 10 (Image.ANTIALIAS was removed) and numpy < 2
+    .pip_install("moviepy>=2.0,<3", "requests", "Pillow==9.5.0", "numpy<2")
     # Ship only video_builder.py, not the whole project (.env, database, etc.)
     .add_local_python_source("video_builder")
 )
