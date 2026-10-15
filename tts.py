@@ -205,9 +205,8 @@ async def create_dialogue_voice(
     makes the narration approximately 30 seconds long.
     """
 
-    voices = VOICE_MAPS.get(
-        voice_profile,
-        VOICE_MAPS[DEFAULT_VOICE]
+    voices = build_voice_map(
+        voice_profile
     )
 
     os.makedirs(
