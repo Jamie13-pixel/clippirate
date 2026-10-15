@@ -44,9 +44,10 @@ def get_random_voice(profile):
 
     profile = (profile or DEFAULT_VOICE).lower()
 
-    voices = build_voice_map(
-       voice_profile
-   )
+    voices = VOICE_PROFILES.get(
+        profile,
+        VOICE_PROFILES[DEFAULT_VOICE]
+    )
 
     return random.choice(voices)
 
