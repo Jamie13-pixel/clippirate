@@ -15,23 +15,16 @@ from google.genai import types
 # GEMINI CONFIGURATION
 # ============================================================
 
-FALLBACK_MODELS = [
-    m.strip()
-    for m in os.getenv("GEMINI_FALLBACK_MODELS", "gemini-3.1-flash-lite").split(",")
-    if m.strip()
-]
-
 DEFAULT_MODEL = os.getenv(
     "GEMINI_MODEL",
     "gemini-3.5-flash-lite"
 )
 
-# Number of retries ONLY for temporary 503-type failures.
-# Keep this low because retries can consume API quota.
+# Retries ONLY for temporary 5xx/503-type failures.
 MAX_503_RETRIES = 1
-
-# Maximum wait before retrying a temporary 503.
 MAX_RETRY_WAIT = 10
+
+VALID_NARRATION_MODES = ("solo", "dialogue")
 
 
 # ============================================================
@@ -82,7 +75,6 @@ def clean_response(text: str) -> str:
 
     text = text.strip()
 
-    # Remove markdown JSON fences if Gemini adds them.
     text = re.sub(
         r"^```(?:json)?\s*",
         "",
@@ -108,37 +100,22 @@ def extract_json(text: str):
 
     text = clean_response(text)
 
-    # --------------------------------------------------------
-    # Direct JSON
-    # --------------------------------------------------------
-
     try:
         return json.loads(text)
-
     except json.JSONDecodeError:
         pass
-
-    # --------------------------------------------------------
-    # JSON surrounded by other text
-    # --------------------------------------------------------
 
     start = text.find("{")
     end = text.rfind("}")
 
     if start == -1 or end == -1 or end <= start:
-
         raise RuntimeError(
             "Gemini returned an invalid script response."
         )
 
     try:
-
-        return json.loads(
-            text[start:end + 1]
-        )
-
+        return json.loads(text[start:end + 1])
     except json.JSONDecodeError as exc:
-
         raise RuntimeError(
             "Gemini returned invalid JSON for the video script."
         ) from exc
@@ -150,13 +127,15 @@ def extract_json(text: str):
 
 def _gemini_error_type(exc: Exception) -> str:
 
+    # (This block was sitting at module level in the old file,
+    #  where `exc` doesn't exist. It belongs inside the function.)
+    code = getattr(exc, "code", None)
+
+    if code in (500, 502, 503, 504):
+        return "temporary"
+
     error_text = str(exc)
-
     upper = error_text.upper()
-
-    # --------------------------------------------------------
-    # QUOTA / RATE LIMIT
-    # --------------------------------------------------------
 
     if (
         "429" in error_text
@@ -166,10 +145,6 @@ def _gemini_error_type(exc: Exception) -> str:
     ):
         return "quota"
 
-    # --------------------------------------------------------
-    # TEMPORARY SERVER UNAVAILABLE
-    # --------------------------------------------------------
-
     if (
         "503" in error_text
         or "UNAVAILABLE" in upper
@@ -178,10 +153,6 @@ def _gemini_error_type(exc: Exception) -> str:
     ):
         return "temporary"
 
-    # --------------------------------------------------------
-    # AUTHENTICATION
-    # --------------------------------------------------------
-
     if (
         "401" in error_text
         or "403" in error_text
@@ -189,10 +160,6 @@ def _gemini_error_type(exc: Exception) -> str:
         or "PERMISSION_DENIED" in upper
     ):
         return "authentication"
-
-    # --------------------------------------------------------
-    # MODEL NOT FOUND
-    # --------------------------------------------------------
 
     if (
         "404" in error_text
@@ -214,7 +181,6 @@ def _friendly_gemini_error(
 ) -> RuntimeError:
 
     if error_type == "quota":
-
         return RuntimeError(
             "Gemini API quota has been exhausted for the current "
             "model/project. No additional retry was attempted. "
@@ -223,7 +189,6 @@ def _friendly_gemini_error(
         )
 
     if error_type == "temporary":
-
         return RuntimeError(
             "Gemini is temporarily unavailable. "
             "The server made only one retry to avoid unnecessary "
@@ -232,14 +197,12 @@ def _friendly_gemini_error(
         )
 
     if error_type == "authentication":
-
         return RuntimeError(
             "Gemini API authentication failed. "
             "Check your GEMINI_API_KEY."
         )
 
     if error_type == "model":
-
         return RuntimeError(
             f"Gemini model '{DEFAULT_MODEL}' is not available. "
             "Check the GEMINI_MODEL environment variable."
@@ -251,7 +214,7 @@ def _friendly_gemini_error(
 
 
 # ============================================================
-# GENERATE SCRIPT
+# HELPERS
 # ============================================================
 
 def _clean_visual(text) -> str:
@@ -260,10 +223,24 @@ def _clean_visual(text) -> str:
     return re.sub(r"\s+", " ", text).strip().lower()[:60]
 
 
-def _parse_visual_scenes(data):
-    """Read the {"scenes": [{"sentence", "visual"}, ...]} structure.
+def _normalize_speaker(value, index, dialogue_mode):
+    """Return "HOST" or "GUEST". Solo is always HOST. In dialogue mode a
+    missing/unknown speaker falls back to strict alternation."""
+    if not dialogue_mode:
+        return "HOST"
 
-    Returns (script_text, sentences, visuals) or None if the structure is missing.
+    speaker = str(value or "").strip().upper()
+
+    if speaker in ("HOST", "GUEST"):
+        return speaker
+
+    return "HOST" if index % 2 == 0 else "GUEST"
+
+
+def _parse_visual_scenes(data, dialogue_mode=False):
+    """Read {"scenes": [{"sentence", "visual", "speaker"?}, ...]}.
+
+    Returns (script_text, sentences, visuals, speakers) or None.
     """
     scenes = data.get("scenes")
 
@@ -272,79 +249,46 @@ def _parse_visual_scenes(data):
 
     sentences = []
     visuals = []
+    speakers = []
 
     for item in scenes:
 
         if isinstance(item, dict):
             sentence = str(item.get("sentence", "")).strip()
             visual = _clean_visual(item.get("visual", ""))
+            raw_speaker = item.get("speaker")
         else:
             sentence = str(item).strip()
             visual = ""
+            raw_speaker = None
 
         if sentence:
+            speakers.append(
+                _normalize_speaker(raw_speaker, len(sentences), dialogue_mode)
+            )
             sentences.append(sentence)
             visuals.append(visual)
 
     if not sentences:
         return None
 
-    return " ".join(sentences), sentences, visuals
+    return " ".join(sentences), sentences, visuals, speakers
 
 
-def generate_script(
-    topic: str,
-    duration: int = 30,
-    with_visuals: bool = False
-):
-    """Generate the narration script.
+# ============================================================
+# PROMPTS
+# ============================================================
 
-    Default: returns (script_text, dialogue), exactly as before.
+def _build_prompt(topic, duration, word_count, with_visuals, dialogue_mode):
 
-    with_visuals=True: the same single Gemini call also writes a stock-footage
-    search phrase for every sentence, and the return value is
-    (script_text, sentences, visuals) where visuals[i] matches sentences[i].
-    """
-
-    # --------------------------------------------------------
-    # Validate topic
-    # --------------------------------------------------------
-
-    if not topic or not topic.strip():
-
-        raise ValueError(
-            "Video topic cannot be empty."
-        )
-
-    topic = topic.strip()
-
-    # --------------------------------------------------------
-    # Validate duration
-    # --------------------------------------------------------
-
-    if duration not in (30, 45, 60):
-
-        raise ValueError(
-            "Duration must be 30, 45, or 60 seconds."
-        )
-
-    word_count = target_word_count(duration)
-
-    # --------------------------------------------------------
-    # Create Gemini client
-    # --------------------------------------------------------
-
-    client = get_gemini_client()
-
-    # --------------------------------------------------------
-    # Prompt
-    # --------------------------------------------------------
-
-    prompt = f"""
+    if with_visuals and dialogue_mode:
+        return f"""
 You are the professional script-writing engine for
 Clip Pirate .ai, an AI short-video generator.
 
-Create a high-retention short-form video narration.
+Create a high-retention short-form video written as a natural
+conversation between two speakers, HOST and GUEST, and, for every
+line, a stock-footage search phrase for the matching visuals.
 
 TOPIC:
 {topic}
@@ -353,47 +297,52 @@ REQUESTED DURATION:
 {duration} seconds
 
 TARGET WORD COUNT:
-{word_count} words minimum.
+Approximately {word_count} spoken words in total.
 
-IMPORTANT:
-The narration must contain AT LEAST {word_count} words.
-It may exceed the target by up to 15%.
+CONVERSATION REQUIREMENTS:
 
-REQUIREMENTS:
-
-- Start with a strong hook in the first sentence.
-- Keep the viewer engaged from beginning to end.
-- Use natural spoken language.
-- Use short, clear sentences.
-- Make it suitable for text-to-speech.
-- Make it informative and engaging.
-- Avoid unnecessary filler.
-- Do not include camera directions.
-- Do not include scene directions.
-- Do not include timestamps.
-- Do not include sound effects.
-- Do not include production instructions.
+- HOST opens with a strong hook.
+- Strictly alternate: HOST, GUEST, HOST, GUEST, and so on.
+- HOST explains the facts. GUEST reacts, asks curious questions
+  and sets up the next fact.
+- Use curiosity loops: every GUEST line should make the viewer
+  want the next HOST line.
+- Each "sentence" must be exactly ONE short, complete sentence
+  ending in a period, exclamation mark or question mark.
+- Use natural spoken language, suitable for text-to-speech.
+- Avoid filler. Do not include stage directions, timestamps,
+  sound effects, speaker names inside the text, or production
+  instructions.
 - Do not mention AI.
-- End with a memorable conclusion or takeaway.
-- Never return fewer than {word_count} words.
+- End with a strong final fact or a memorable reaction.
+- Keep the total close to the requested word count.
+
+VISUAL REQUIREMENTS:
+
+- "visual" is a 2 to 4 word search phrase for a stock-video library
+  such as Pixabay. It is never spoken.
+- Describe something concrete that a camera can film, for example
+  "soccer stadium crowd", "city skyline night", "stack of cash",
+  "ocean waves", "person typing laptop".
+- It must match what that line is about.
+- Vary the visuals from line to line.
+- Never use people's names, brand names, team names or on-screen text.
+- Never use abstract ideas such as "success" or "rivalry".
 
 Return ONLY valid JSON.
 
 Use exactly this structure:
 
 {{
-    "script": "Complete narration as one string.",
-    "dialogue": [
-        "First spoken sentence.",
-        "Second spoken sentence.",
-        "Third spoken sentence."
+    "scenes": [
+        {{"speaker": "HOST", "sentence": "First spoken line.", "visual": "stadium crowd cheering"}},
+        {{"speaker": "GUEST", "sentence": "Second spoken line?", "visual": "soccer ball grass"}}
     ]
 }}
 """
 
     if with_visuals:
-
-        prompt = f"""
+        return f"""
 You are the professional script-writing engine for
 Clip Pirate .ai, an AI short-video generator.
 
@@ -451,19 +400,165 @@ Use exactly this structure:
 }}
 """
 
+    if dialogue_mode:
+        return f"""
+You are the professional script-writing engine for
+Clip Pirate .ai, an AI short-video generator.
+
+Create a high-retention short-form video written as a natural
+conversation between two speakers, HOST and GUEST.
+
+TOPIC:
+{topic}
+
+REQUESTED DURATION:
+{duration} seconds
+
+TARGET WORD COUNT:
+{word_count} words minimum. It may exceed the target by up to 15%.
+
+REQUIREMENTS:
+
+- HOST opens with a strong hook.
+- Strictly alternate: HOST, GUEST, HOST, GUEST, and so on.
+- HOST explains the facts. GUEST reacts and asks curious questions.
+- Use curiosity loops and short sentences.
+- Natural spoken language suitable for text-to-speech.
+- No stage directions, timestamps, sound effects or speaker names
+  inside the text.
+- Do not mention AI.
+- End with a strong final fact.
+- Never return fewer than {word_count} words.
+
+Return ONLY valid JSON.
+
+Use exactly this structure:
+
+{{
+    "script": "Complete conversation as one string, without speaker names.",
+    "dialogue": [
+        {{"speaker": "HOST", "text": "First line."}},
+        {{"speaker": "GUEST", "text": "Second line?"}},
+        {{"speaker": "HOST", "text": "Third line."}}
+    ]
+}}
+"""
+
+    return f"""
+You are the professional script-writing engine for
+Clip Pirate .ai, an AI short-video generator.
+
+Create a high-retention short-form video narration.
+
+TOPIC:
+{topic}
+
+REQUESTED DURATION:
+{duration} seconds
+
+TARGET WORD COUNT:
+{word_count} words minimum.
+
+IMPORTANT:
+The narration must contain AT LEAST {word_count} words.
+It may exceed the target by up to 15%.
+
+REQUIREMENTS:
+
+- Start with a strong hook in the first sentence.
+- Keep the viewer engaged from beginning to end.
+- Use natural spoken language.
+- Use short, clear sentences.
+- Make it suitable for text-to-speech.
+- Make it informative and engaging.
+- Avoid unnecessary filler.
+- Do not include camera directions.
+- Do not include scene directions.
+- Do not include timestamps.
+- Do not include sound effects.
+- Do not include production instructions.
+- Do not mention AI.
+- End with a memorable conclusion or takeaway.
+- Never return fewer than {word_count} words.
+
+Return ONLY valid JSON.
+
+Use exactly this structure:
+
+{{
+    "script": "Complete narration as one string.",
+    "dialogue": [
+        "First spoken sentence.",
+        "Second spoken sentence.",
+        "Third spoken sentence."
+    ]
+}}
+"""
+
+
+# ============================================================
+# GENERATE SCRIPT
+# ============================================================
+
+def generate_script(
+    topic: str,
+    duration: int = 30,
+    with_visuals: bool = False,
+    narration_mode: str = "solo",
+    return_speakers: bool = False,
+):
+    """Generate the narration script.
+
+    Return shapes (backward compatible):
+
+      default:                      (script_text, dialogue)
+      with_visuals=True:            (script_text, sentences, visuals)
+      return_speakers=True:         (script_text, sentences, visuals, speakers)
+
+    narration_mode: "solo" (HOST only) or "dialogue" (HOST/GUEST).
+    speakers[i] is "HOST" or "GUEST" and matches sentences[i].
+    return_speakers=True implies with_visuals=True.
+    """
+
+    if not topic or not topic.strip():
+        raise ValueError("Video topic cannot be empty.")
+
+    topic = topic.strip()
+
+    if duration not in (30, 45, 60):
+        raise ValueError("Duration must be 30, 45, or 60 seconds.")
+
+    narration_mode = (narration_mode or "solo").strip().lower()
+
+    if narration_mode not in VALID_NARRATION_MODES:
+        raise ValueError(
+            "narration_mode must be 'solo' or 'dialogue'."
+        )
+
+    dialogue_mode = narration_mode == "dialogue"
+
+    if return_speakers:
+        with_visuals = True
+
+    word_count = target_word_count(duration)
+
+    client = get_gemini_client()
+
+    prompt = _build_prompt(
+        topic, duration, word_count, with_visuals, dialogue_mode
+    )
+
     # --------------------------------------------------------
     # Gemini request
+    #
+    # 429 quota errors are never retried. Temporary 5xx/503
+    # errors get ONE short retry so a blip can't burn the quota.
     # --------------------------------------------------------
-    #
-    # IMPORTANT:
-    #
-    # We do NOT retry 429 quota errors.
-    #
-    # We allow only ONE retry for a temporary 503.
-    #
-    # This prevents a temporary Gemini problem from consuming
-    # the remaining daily API quota.
-    #
+
+    if with_visuals:
+        max_tokens = 2000 if dialogue_mode else 1500
+    else:
+        max_tokens = 800 if dialogue_mode else 500
 
     response = None
 
@@ -476,7 +571,7 @@ Use exactly this structure:
                 contents=prompt,
                 config=types.GenerateContentConfig(
                     response_mime_type="application/json",
-                    max_output_tokens=1500 if with_visuals else 500
+                    max_output_tokens=max_tokens
                 )
             )
 
@@ -486,179 +581,86 @@ Use exactly this structure:
 
             error_type = _gemini_error_type(exc)
 
-            # ------------------------------------------------
-            # QUOTA
-            # ------------------------------------------------
-            #
-            # NEVER retry quota errors.
-            #
+            if (
+                error_type == "temporary"
+                and attempt < MAX_503_RETRIES
+            ):
+                time.sleep(min(2 ** attempt, MAX_RETRY_WAIT))
+                continue
 
-            if error_type == "quota":
-
-                raise _friendly_gemini_error(
-                    exc,
-                    error_type
-                ) from exc
-
-            # ------------------------------------------------
-            # TEMPORARY 503
-            # ------------------------------------------------
-
-            if error_type == "temporary":
-
-                if attempt < MAX_503_RETRIES:
-
-                    # One short retry only.
-                    wait_time = min(
-                        2 ** attempt,
-                        MAX_RETRY_WAIT
-                    )
-
-                    time.sleep(wait_time)
-
-                    continue
-
-                raise _friendly_gemini_error(
-                    exc,
-                    error_type
-                ) from exc
-
-            # ------------------------------------------------
-            # AUTHENTICATION
-            # ------------------------------------------------
-
-            if error_type == "authentication":
-
-                raise _friendly_gemini_error(
-                    exc,
-                    error_type
-                ) from exc
-
-            # ------------------------------------------------
-            # MODEL
-            # ------------------------------------------------
-
-            if error_type == "model":
-
-                raise _friendly_gemini_error(
-                    exc,
-                    error_type
-                ) from exc
-
-            # ------------------------------------------------
-            # OTHER ERROR
-            # ------------------------------------------------
-
-            raise _friendly_gemini_error(
-                exc,
-                error_type
-            ) from exc
-
-    # ========================================================
-    # Make sure a response was received
-    # ========================================================
+            raise _friendly_gemini_error(exc, error_type) from exc
 
     if response is None:
+        raise RuntimeError("Gemini did not return a response.")
 
-        raise RuntimeError(
-            "Gemini did not return a response."
-        )
-
-    # ========================================================
-    # Get response text
-    # ========================================================
-
-    content = getattr(
-        response,
-        "text",
-        None
-    )
+    content = getattr(response, "text", None)
 
     if not content:
-
-        raise RuntimeError(
-            "Gemini returned an empty script."
-        )
-
-    # ========================================================
-    # Parse JSON
-    # ========================================================
+        raise RuntimeError("Gemini returned an empty script.")
 
     data = extract_json(content)
 
     if not isinstance(data, dict):
+        raise RuntimeError("Gemini returned an invalid script structure.")
 
-        raise RuntimeError(
-            "Gemini returned an invalid script structure."
-        )
-
-    # ========================================================
-    # Per-sentence visuals (optional)
-    # ========================================================
+    # --------------------------------------------------------
+    # Per-line visuals (and speakers)
+    # --------------------------------------------------------
 
     if with_visuals:
 
-        parsed = _parse_visual_scenes(data)
+        parsed = _parse_visual_scenes(data, dialogue_mode)
 
         if parsed:
-            return parsed
+            script_text, sentences, visuals, speakers = parsed
 
-        # Gemini ignored the "scenes" structure. Fall through to the
-        # normal script/dialogue parsing below and return no visuals.
+            if return_speakers:
+                return script_text, sentences, visuals, speakers
 
-    # ========================================================
-    # Extract script
-    # ========================================================
+            return script_text, sentences, visuals
 
-    script_text = str(
-        data.get(
-            "script",
-            ""
-        )
-    ).strip()
+        # Gemini ignored the "scenes" structure; fall through to the
+        # plain script/dialogue parsing below, with no visuals.
+
+    # --------------------------------------------------------
+    # Plain script + dialogue
+    # --------------------------------------------------------
+
+    script_text = str(data.get("script", "")).strip()
+
+    raw_dialogue = data.get("dialogue", [])
+
+    if not isinstance(raw_dialogue, list):
+        raise RuntimeError("Gemini returned an invalid dialogue format.")
+
+    sentences = []
+    speakers = []
+
+    for item in raw_dialogue:
+
+        if isinstance(item, dict):
+            text = str(item.get("text", "")).strip()
+            raw_speaker = item.get("speaker")
+        else:
+            text = str(item).strip()
+            raw_speaker = None
+
+        if text:
+            speakers.append(
+                _normalize_speaker(raw_speaker, len(sentences), dialogue_mode)
+            )
+            sentences.append(text)
+
+    if not sentences:
+        raise RuntimeError("Gemini returned no dialogue.")
 
     if not script_text:
+        script_text = " ".join(sentences)
 
-        raise RuntimeError(
-            "Gemini returned no script text."
-        )
-
-    # ========================================================
-    # Extract dialogue
-    # ========================================================
-
-    dialogue = data.get(
-        "dialogue",
-        []
-    )
-
-    if not isinstance(dialogue, list):
-
-        raise RuntimeError(
-            "Gemini returned an invalid dialogue format."
-        )
-
-    # --------------------------------------------------------
-    # Clean dialogue
-    # --------------------------------------------------------
-
-    dialogue = [
-        str(sentence).strip()
-        for sentence in dialogue
-        if str(sentence).strip()
-    ]
-
-    if not dialogue:
-
-        raise RuntimeError(
-            "Gemini returned no dialogue."
-        )
-
-    # ========================================================
-    # Return result
-    # ========================================================
+    if return_speakers:
+        return script_text, sentences, [""] * len(sentences), speakers
 
     if with_visuals:
-        return script_text, dialogue, []
+        return script_text, sentences, []
 
-    return script_text, dialogue
+    return script_text, sentences

@@ -269,6 +269,8 @@ def init_db():
 
                 credits_cost INTEGER NOT NULL DEFAULT 1,
 
+                narration_mode TEXT NOT NULL DEFAULT 'solo',
+
                 created_at TEXT NOT NULL
             );
 
@@ -422,7 +424,19 @@ def init_db():
         }
 
         for column, sql in migrations.items():
+            project_columns = {
+                row["name"]
+                for row in c.execute(
+                    "PRAGMA table_info(projects)"
+                ).fetchall()
+            }
 
+            if "narration_mode" not in project_columns:
+
+                c.execute(
+                    "ALTER TABLE projects ADD COLUMN "
+                    "narration_mode TEXT NOT NULL DEFAULT 'solo'"
+                )
             if column not in columns:
 
                 c.execute(sql)
@@ -1914,7 +1928,8 @@ def create_project(
     aspect_ratio,
     voice,
     captions,
-    credits_cost
+    credits_cost,
+    narration_mode="solo"
 ):
 
     with _conn() as c:
@@ -1932,11 +1947,13 @@ def create_project(
                 captions,
                 status,
                 credits_cost,
+                narration_mode,
                 created_at
 
             )
 
             VALUES(
+                ?,
                 ?,
                 ?,
                 ?,
@@ -1959,6 +1976,7 @@ def create_project(
                 int(captions),
                 "processing",
                 credits_cost,
+                narration_mode,
                 now_iso(),
             )
         )

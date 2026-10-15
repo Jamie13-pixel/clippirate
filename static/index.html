@@ -1333,6 +1333,14 @@
                                 </div>
 
                                 <div class="form-group">
+                                    <label>Narration Mode</label>
+                                    <select id="narrationMode">
+                                        <option value="solo">Solo</option>
+                                        <option value="dialogue">Dialogue</option>
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
                                     <label>Captions</label>
                                     <label class="checkbox-row">
                                         <input id="videoCaptions" type="checkbox" checked>
@@ -1656,6 +1664,38 @@
         return 6;
     }
 
+    function applyNarrationAccess() {
+
+    const select = document.getElementById("videoNarration");
+    const hint = document.getElementById("narrationHint");
+
+    if (!select) return;
+
+    const plan = String(
+        (currentUser && (currentUser.plan || currentUser.plan_name)) || "free"
+    ).toLowerCase();
+
+    const locked = plan === "free";
+    const dialogue = Array.from(select.options).find(o => o.value === "dialogue");
+
+    if (dialogue) {
+        dialogue.disabled = locked;
+        dialogue.textContent = locked
+            ? "🔒 Dialogue (Starter and above)"
+            : "Dialogue (Host + Guest)";
+    }
+
+    if (locked && select.value === "dialogue") {
+        select.value = "solo";
+    }
+
+    if (hint) {
+        hint.textContent = locked
+            ? "Upgrade to Starter or higher to unlock two-voice dialogue videos."
+            : "Dialogue uses two voices and tends to hold viewers longer.";
+        }
+    }
+
     function updateCreditCost() {
 
         const info = document.getElementById("creditCostInfo");
@@ -1935,6 +1975,7 @@
 
         document.getElementById("dashboardPlan").textContent = plan;
         document.getElementById("accountPlan").textContent = plan;
+        applyNarrationAccess();
     }
 
 
@@ -3385,6 +3426,9 @@
         }
 
         updateCreditCost();
+
+        applyNarrationAccess();
+        
 
         // The template applies once, then clears.
         try {

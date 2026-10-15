@@ -218,6 +218,7 @@ class VideoRequest(BaseModel):
     voice: str = Field(default="professional")
     captions: bool = True
     template_id: str = Field(default="", max_length=60)
+    narration_mode: str = "solo"
 
 
 def current_user(request: Request):
@@ -381,8 +382,17 @@ async def process_video_job(job_id: str, user_id: str, topic: str, settings: dic
     cost = settings["credit_cost"]
     try:
         print(f"[JOB {job_id}] Starting script generation...", flush=True)
-        script_text, orig_sentences, visuals = await asyncio.to_thread(
-            generate_script, topic, settings["duration"], True
+
+        narration_mode = settings.get("narration_mode", "solo")
+        dialogue_mode = narration_mode == "dialogue"
+
+        script_text, orig_sentences, visuals, speakers = await asyncio.to_thread(
+            generate_script,
+            topic,
+            settings["duration"],
+            with_visuals=True,
+            narration_mode=narration_mode,
+            return_speakers=True,
         )
         if not script_text:
             raise RuntimeError("Script generator returned an empty script.")
@@ -405,14 +415,27 @@ async def process_video_job(job_id: str, user_id: str, topic: str, settings: dic
             raise RuntimeError("Quality control returned an empty script.")
         print(f"[JOB {job_id}] Approved script: {len(script_text.split())} words", flush=True)
 
-        dialogue = [
-            ("HOST", line.strip())
-            for line in re.split(r"(?<=[.!?])\s+", script_text.strip())
-            if line.strip()
-        ]
+        if dialogue_mode and script_text.strip() == " ".join(orig_sentences).strip():
+            # QC left the script untouched, so Gemini's speaker labels still line up.
+            dialogue = list(zip(speakers, orig_sentences))
+        else:
+            lines = [
+                line.strip()
+                for line in re.split(r"(?<=[.!?])\s+", script_text.strip())
+                if line.strip()
+            ]
+            if dialogue_mode:
+                # QC rewrote the script, so fall back to strict HOST/GUEST alternation.
+                dialogue = [
+                    ("HOST" if i % 2 == 0 else "GUEST", line)
+                    for i, line in enumerate(lines)
+                ]
+            else:
+                dialogue = [("HOST", line) for line in lines]
+
         if not dialogue:
             raise RuntimeError("Quality-controlled script contains no dialogue.")
-        print(f"[JOB {job_id}] Dialogue lines: {len(dialogue)}", flush=True)
+            print(f"[JOB {job_id}] Dialogue lines: {len(dialogue)}", flush=True)
 
         scene_hints = align_visual_hints(orig_sentences, visuals, [line for _, line in dialogue])
         print(f"[JOB {job_id}] Visual hints: {scene_hints}", flush=True)
@@ -497,6 +520,23 @@ async def process_video_job(job_id: str, user_id: str, topic: str, settings: dic
 @limiter.limit("5/minute")
 async def generate_video(request: Request, body: VideoRequest):
     user = current_user(request)
+
+    narration_mode = (body.narration_mode or "solo").strip().lower()
+
+    if narration_mode not in ("solo", "dialogue"):
+        raise HTTPException(status_code=422, detail="Unsupported narration mode.")
+
+        if narration_mode == "dialogue" and str(user["plan"]).lower() == "free":
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": "upgrade_required",
+                    "message": "Dialogue narration is available only on Starter, Pro and Mega plans.",
+                    "required_plan": "starter",
+                    "upgrade_required": True,
+                },
+        )
+    
     topic = body.topic.strip()
     if not topic:
         raise HTTPException(status_code=400, detail="Topic cannot be empty.")
@@ -541,6 +581,7 @@ async def generate_video(request: Request, body: VideoRequest):
         create_project(
             project_id, user["id"], topic, body.duration,
             body.aspect_ratio, body.voice, body.captions, cost,
+            narration_mode=narration_mode
         )
     except Exception:
         refund_credits(user["id"], cost)
@@ -556,6 +597,7 @@ async def generate_video(request: Request, body: VideoRequest):
         "captions": body.captions,
         "credit_cost": cost,
         "template": template,
+        "narration_mode": narration_mode,   # not body.narration_mode
     }
     task = asyncio.create_task(process_video_job(job_id, user["id"], topic, settings, project_id))
     _background_tasks.add(task)
