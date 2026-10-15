@@ -13,81 +13,57 @@ from moviepy import AudioFileClip, concatenate_audioclips
 import random
 
 VOICE_PROFILES = {
+
     "professional": [
-        "onwK4e9ZLuTAKqWW03F9",
-        "jB2lPb5DhAX6l1TLkKXy",
+        "onwK4e9ZLuTAKqWW03F9",  # Daniel
+        "XrExE9yKIg1WjnnlVkGX",  # Matilda
+        "Xb7hH8MSUJpSbSDYk0k2",  # Alice
+        "hpp4J3VqNfWAUOO0d1Us",  # Bella
     ],
 
     "energetic": [
-        "TX3LPaxmHKxFdv7VOQHJ",
-        "kPzsL2i3teMYv0FxEYQ6",
+        "TX3LPaxmHKxFdv7VOQHJ",  # Liam
+        "cgSgspJ2msm6clMCkdW9",  # Jessica
+        "IKne3meq5aSn9XLyUdCD",  # Charlie
+        "FGY2WhTYpPnrIDTdsKH5",  # Laura
     ],
 
     "calm": [
-        "ev2kMR9ZJZZsemuogS5u",
-        "bD9maNcCuQQS75DGuteM",
+        "EXAVITQu4vr4xnSDxMaL",  # Sarah
+        "cjVigY5qzO86Huf0OWal",  # Eric
+        "nPczCjzI2devNBz1zQrb",  # Brian
+        "SAz9YHcvj6GT2YYXdXww",  # River
+        "pFZP5JQG7iQjIQuC4Bku",  # Lily
     ],
 }
 
 DEFAULT_VOICE = "professional"
 
-VOICE_LIBRARY = {
-    "onwK4e9ZLuTAKqWW03F9": {
-        "name": "Professional Host",
-        "profile": "professional",
-    },
 
-    "jB2lPb5DhAX6l1TLkKXy": {
-        "name": "Professional Guest",
-        "profile": "professional",
-    },
+def get_random_voice(profile):
 
-    "TX3LPaxmHKxFdv7VOQHJ": {
-        "name": "Energetic Host",
-        "profile": "energetic",
-    },
+    profile = (profile or DEFAULT_VOICE).lower()
 
-    "kPzsL2i3teMYv0FxEYQ6": {
-        "name": "Energetic Guest",
-        "profile": "energetic",
-    },
+    voices = build_voice_map(
+       voice_profile
+   )
 
-    "ev2kMR9ZJZZsemuogS5u": {
-        "name": "Calm Narrator",
-        "profile": "calm",
-    },
-
-    "bD9maNcCuQQS75DGuteM": {
-        "name": "Calm Storyteller",
-        "profile": "calm",
-    },
-}
+    return random.choice(voices)
 
 
-def get_random_voice(profile: str):
-    normalized_profile = (profile or DEFAULT_VOICE).lower()
-    available_voices = VOICE_PROFILES.get(
-        normalized_profile,
-        VOICE_PROFILES[DEFAULT_VOICE],
-    )
-    return random.choice(available_voices)
+def build_voice_map(profile):
 
+    host_voice = get_random_voice(profile)
+    guest_voice = get_random_voice(profile)
 
-def build_voice_map(profile: str):
-    normalized_profile = (profile or DEFAULT_VOICE).lower()
-    available_voices = VOICE_PROFILES.get(
-        normalized_profile,
-        VOICE_PROFILES[DEFAULT_VOICE],
-    )
+    attempts = 0
 
-    host_voice = get_random_voice(normalized_profile)
-    guest_voice = get_random_voice(normalized_profile)
-
-    if len(available_voices) > 1:
-        attempts = 0
-        while guest_voice == host_voice and attempts < 10:
-            guest_voice = get_random_voice(normalized_profile)
-            attempts += 1
+    while (
+        host_voice == guest_voice
+        and attempts < 10
+    ):
+        guest_voice = get_random_voice(profile)
+        attempts += 1
 
     return {
         "HOST": host_voice,
@@ -95,20 +71,24 @@ def build_voice_map(profile: str):
     }
 
 
-VOICE_MAPS = {
-    profile: build_voice_map(profile)
-    for profile in VOICE_PROFILES
-}
+def get_fallback_voice(profile):
 
+    fallbacks = {
 
-def get_available_voices():
-    return [
-        {
-            "id": voice_id,
-            **meta,
-        }
-        for voice_id, meta in VOICE_LIBRARY.items()
-    ]
+        "professional":
+            "onwK4e9ZLuTAKqWW03F9",  # Daniel
+
+        "energetic":
+            "TX3LPaxmHKxFdv7VOQHJ",  # Liam
+
+        "calm":
+            "EXAVITQu4vr4xnSDxMaL",  # Sarah
+    }
+
+    return fallbacks.get(
+        profile,
+        "onwK4e9ZLuTAKqWW03F9"
+    )
 
 # ============================================================
 # TTS SYNTHESIS
@@ -288,11 +268,31 @@ async def create_dialogue_voice(
                 f"line_{uuid.uuid4().hex}.mp3"
             )
 
-            await _synthesize_line(
-                text,
-                voice,
-                path
-            )
+            try:
+
+                await _synthesize_line(
+                    text,
+                    voice,
+                    path
+                )
+
+            except Exception as exc:
+
+                print(
+                    f"[TTS] Voice failed ({voice}), "
+                    f"falling back: {exc}",
+                    flush=True
+                )
+
+                fallback_voice = get_fallback_voice(
+                    voice_profile
+                )
+
+                await _synthesize_line(
+                    text,
+                    fallback_voice,
+                    path
+                )
 
             line_paths.append(
                 (
