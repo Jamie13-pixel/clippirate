@@ -436,6 +436,7 @@ async def process_video_job(job_id: str, user_id: str, topic: str, settings: dic
         if not dialogue:
             raise RuntimeError("Quality-controlled script contains no dialogue.")
             print(f"[JOB {job_id}] Dialogue lines: {len(dialogue)}", flush=True)
+            print(f"[JOB {job_id}] narration_mode={narration_mode} speakers={[s for s, _ in dialogue][:6]}", flush=True)
 
         scene_hints = align_visual_hints(orig_sentences, visuals, [line for _, line in dialogue])
         print(f"[JOB {job_id}] Visual hints: {scene_hints}", flush=True)
