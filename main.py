@@ -396,7 +396,12 @@ async def signup(request: Request, body: SignupRequest, response: Response):
     except Exception as exc:
         # Account remains unverified; the user can retry via /auth/resend-verification
         # after SMTP is configured or temporarily unavailable delivery recovers.
-        print(f"[EMAIL] Verification send failed for newly created account: {type(exc).__name__}", flush=True)
+        print(
+            f"[EMAIL] Verification send failed: "
+            f"{type(exc).__name__}: {exc}",
+            flush=True,
+        )
+
         raise HTTPException(
             status_code=503,
             detail={
