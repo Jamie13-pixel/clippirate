@@ -647,8 +647,16 @@ def check_status(request: Request, job_id: str):
 def usage(request: Request):
     user = current_user(request)
     summary = get_generation_summary(user["id"]) or {}
+    narration_counts = {"solo": 0, "dialogue": 0}
+    for row in list_projects(user["id"]):
+        row = dict(row)
+        if str(row.get("status", "")).lower() == "failed":
+            continue
+        mode = str(row.get("narration_mode") or "solo").lower()
+        narration_counts[mode if mode in narration_counts else "solo"] += 1
     return {
         "user": public_user(user),
+        "narration_counts": narration_counts,
         "plan": summary.get("plan"),
         "plan_name": summary.get("plan_name"),
         "daily_limit": summary.get("daily_limit"),

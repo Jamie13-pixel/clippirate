@@ -1426,6 +1426,25 @@
 
                 </div>
 
+                <div class="analytics-grid" style="margin-top:20px">
+
+                    <div class="analytics-card">
+                        <h3>Solo Videos</h3>
+                        <div class="analytics-number" id="analyticsSolo">—</div>
+                    </div>
+
+                    <div class="analytics-card">
+                        <h3>Dialogue Videos</h3>
+                        <div class="analytics-number" id="analyticsDialogue">—</div>
+                    </div>
+
+                    <div class="analytics-card">
+                        <h3>Most Used Narration Mode</h3>
+                        <div class="analytics-number" id="analyticsTopMode" style="font-size:24px">—</div>
+                    </div>
+
+                </div>
+
                 <div class="panel" style="margin-top:20px">
 
                     <div class="panel-header">
@@ -2606,7 +2625,7 @@
     const FALLBACK_TEMPLATES = [
         { id: "viral-facts", name: "Viral Facts", icon: "⚡",
           description: "Fast-paced fact videos with strong hooks.",
-          prompt: "Amazing facts about" },
+          prompt: "Amazing facts about", narration_mode: "solo" },
         { id: "amazing-places", name: "Amazing Places", icon: "🌍",
           description: "Create engaging destination and travel videos.",
           prompt: "Amazing places in" },
@@ -2621,8 +2640,32 @@
           prompt: "An inspiring story about" },
         { id: "top-5-list", name: "Top 5 List", icon: "🎯",
           description: "Create countdown-style videos and ranked lists.",
-          prompt: "Top 5 facts about" }
+          prompt: "Top 5 facts about" },
+        { id: "podcast-style", name: "Podcast Style", icon: "🎙️",
+          description: "A Host and a Guest talk through your topic like a short podcast clip.",
+          prompt: "A podcast conversation about", narration_mode: "dialogue" },
+        { id: "news-reporter", name: "News Reporter", icon: "📰",
+          description: "An anchor and a correspondent break down the story.",
+          prompt: "Breaking news report on", narration_mode: "dialogue" }
     ];
+
+
+    function templateModeBadge(template) {
+
+        const mode = String((template && template.narration_mode) || "").toLowerCase();
+
+        if (mode !== "dialogue") return "";
+
+        const plan = String(
+            (currentUser && (currentUser.plan || currentUser.plan_name)) || "free"
+        ).toLowerCase();
+
+        const label = plan === "free"
+            ? "🔒 Dialogue (Starter+)"
+            : "🎙️ Dialogue";
+
+        return `<div style="display:inline-block;margin:-4px 0 12px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(245,185,66,.15);color:#f5b942;">${label}</div>`;
+    }
 
 
     function renderTemplates(list) {
@@ -2649,6 +2692,8 @@
                         <h3>${escapeHtml(template.name)}</h3>
 
                         <p>${escapeHtml(template.description || "")}</p>
+
+                        ${templateModeBadge(template)}
 
                         <button
                             class="template-use"
@@ -2871,6 +2916,19 @@
                 unlimited ? "Unlimited" : limit;
 
             document.getElementById("analyticsRemaining").textContent = remaining;
+
+            const counts = (data && data.narration_counts) || {};
+            const solo = Number(counts.solo) || 0;
+            const dialogueCount = Number(counts.dialogue) || 0;
+
+            document.getElementById("analyticsSolo").textContent = solo;
+            document.getElementById("analyticsDialogue").textContent = dialogueCount;
+            document.getElementById("analyticsTopMode").textContent =
+                solo + dialogueCount === 0
+                    ? "—"
+                    : solo === dialogueCount
+                        ? "Tied"
+                        : dialogueCount > solo ? "Dialogue" : "Solo";
 
             const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
 
@@ -3484,6 +3542,7 @@
             applyIfValid("videoDuration", template.duration);
             applyIfValid("videoRatio", template.ratio);
             applyIfValid("videoVoice", template.voice);
+            applyIfValid("narrationMode", template.narration_mode);
 
             const topic = document.getElementById("videoTopic");
 
@@ -3500,6 +3559,14 @@
         updateCreditCost();
 
         applyNarrationAccess();
+
+        if (
+            template &&
+            String(template.narration_mode || "").toLowerCase() === "dialogue" &&
+            document.getElementById("narrationMode").value !== "dialogue"
+        ) {
+            showToast("This template works best with Dialogue, available on Starter and above.");
+        }
         
 
         // The template applies once, then clears.
