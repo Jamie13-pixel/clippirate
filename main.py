@@ -8,19 +8,23 @@ import hmac
 import json
 import os
 import re
+import secrets
 import sqlite3
 import threading
 import traceback
 import uuid
 from decimal import Decimal, ROUND_HALF_UP
+from email_service import send_email
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from urllib.parse import quote
+
 
 import modal
 import requests
 from fastapi import FastAPI, HTTPException, Query, Request, Response
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, RedirectResponse
+from fastapi.responses import FileResponse, RedirectResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, EmailStr, Field
 from slowapi import _rate_limit_exceeded_handler
@@ -52,6 +56,9 @@ from db import (
     create_user,
     get_user_by_email,
     get_user,
+    store_email_verification_token,
+    verify_email_token,
+    is_email_verified,
     create_session,
     get_user_by_session,
     delete_session,
@@ -122,6 +129,8 @@ PAYSTACK_CALLBACK_URL = os.getenv(
 PAYSTACK_API = "https://api.paystack.co"
 PAYSTACK_IS_LIVE = bool(PAYSTACK_SECRET_KEY and PAYSTACK_SECRET_KEY.startswith("sk_live_"))
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
+APP_BASE_URL = os.getenv("APP_BASE_URL", "https://clippirate.onrender.com").rstrip("/")
+EMAIL_VERIFICATION_MINUTES = int(os.getenv("EMAIL_VERIFICATION_MINUTES", "30"))
 
 
 def report_payment_configuration():
@@ -146,10 +155,7 @@ def report_payment_configuration():
         warnings.append("ALLOW_DEV_UPGRADE is 'true'. It is ignored in live mode, but remove it from your .env.")
     for warning in warnings:
         print(f"[PAYMENTS] WARNING: {warning}", flush=True)
-
-
-report_payment_configuration()
-
+    print("[EMAIL] WARNING: SMTP_HOST and SMTP_FROM_EMAIL must be configured for email verification.", flush=True)
 
 def report_storage():
     """Log where data lives and how much is in it, so a wipe is obvious in the logs."""
@@ -211,6 +217,14 @@ class LoginRequest(BaseModel):
     password: str
 
 
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
+class VerifyEmailRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+
+
 class VideoRequest(BaseModel):
     topic: str = Field(min_length=1, max_length=300)
     duration: int = Field(default=30, ge=15, le=60)
@@ -228,6 +242,14 @@ def current_user(request: Request):
     user = get_user_by_session(token)
     if not user:
         raise HTTPException(status_code=401, detail="Please log in to continue.")
+    if not is_email_verified(user):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "email_not_verified",
+                "message": "Please verify your email before accessing Clip Pirate.",
+            },
+        )
     return user
 
 
@@ -282,8 +304,80 @@ async def dashboard(request: Request):
     return FileResponse(STATIC_DIR / "index.html")
 
 
+
+async def send_verification_email(email: str, raw_token: str) -> None:
+    """Send a verification link through Brevo."""
+    verify_url = (
+        f"{APP_BASE_URL}/auth/verify?"
+        f"token={quote(raw_token, safe='')}"
+    )
+
+    subject = f"Verify your {APP_NAME} email"
+
+    text_content = (
+        f"Welcome to {APP_NAME}!\n\n"
+        "Verify your email by opening this link within "
+        f"{EMAIL_VERIFICATION_MINUTES} minutes:\n"
+        f"{verify_url}\n\n"
+        "If you did not create this account, ignore this email."
+    )
+
+    html_content = f"""
+    <!doctype html>
+    <html>
+      <body style="font-family:Arial,sans-serif;color:#172033">
+        <h2>Verify your email</h2>
+        <p>Welcome to {APP_NAME}.</p>
+        <p>Confirm your email address to activate your account.</p>
+        <p>
+          <a href="{verify_url}"
+             style="display:inline-block;padding:12px 18px;
+                    background:#6d5dfc;color:#fff;
+                    text-decoration:none;border-radius:8px">
+            Verify email
+          </a>
+        </p>
+        <p>
+          This link expires in {EMAIL_VERIFICATION_MINUTES} minutes.
+          If you did not sign up, ignore this email.
+        </p>
+      </body>
+    </html>
+    """
+
+    await send_email(
+        recipient_email=str(email).strip().lower(),
+        subject=subject,
+        html_content=html_content,
+        text_content=text_content,
+    )
+
+
+
+async def create_and_send_verification(
+    user_id: str,
+    email: str,
+) -> None:
+    raw_token = secrets.token_urlsafe(32)
+
+    expires_at = (
+        datetime.now(timezone.utc)
+        + timedelta(minutes=EMAIL_VERIFICATION_MINUTES)
+    ).isoformat()
+
+    store_email_verification_token(
+        user_id,
+        raw_token,
+        expires_at,
+    )
+
+    await send_verification_email(email, raw_token)
+
+
+
 @app.post("/auth/signup")
-def signup(body: SignupRequest, response: Response):
+@limiter.limit("5/hour")
+async def signup(request: Request, body: SignupRequest, response: Response):
     existing_user = get_user_by_email(body.email)
     if existing_user:
         raise HTTPException(status_code=409, detail="Email already exists.")
@@ -293,13 +387,105 @@ def signup(body: SignupRequest, response: Response):
         raise HTTPException(status_code=409, detail=str(exc)) from exc
     except sqlite3.IntegrityError:
         raise HTTPException(status_code=409, detail="Email already exists.")
-    token = create_session(user_id)
-    response.set_cookie(
-        SESSION_COOKIE, token, httponly=True, samesite="lax",
-        secure=COOKIE_SECURE, max_age=30 * 86400, path="/",
-    )
-    user = get_user(user_id)
-    return {"user": public_user(user)}
+
+    try:
+        await create_and_send_verification(
+            user_id,
+            str(body.email).strip().lower(),
+        )
+    except Exception as exc:
+        # Account remains unverified; the user can retry via /auth/resend-verification
+        # after SMTP is configured or temporarily unavailable delivery recovers.
+        print(f"[EMAIL] Verification send failed for newly created account: {type(exc).__name__}", flush=True)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "verification_email_unavailable",
+                "message": "Your account was created, but the verification email could not be sent. Please try resending the verification email shortly.",
+            },
+        ) from exc
+
+    return {
+        "ok": True,
+        "email_verification_required": True,
+        "message": "Account created. Check your email for the verification link before logging in.",
+        "email": str(body.email).strip().lower(),
+    }
+
+
+@app.post("/auth/resend-verification")
+@limiter.limit("3/hour")
+async def resend_verification(request: Request, body: ResendVerificationRequest):
+    # Same public response for unknown, already verified, and unverified addresses
+    # to reduce account enumeration.
+    generic = {
+        "ok": True,
+        "message": "If that address has an unverified account, a new verification email will be sent.",
+    }
+    user = get_user_by_email(body.email)
+    if not user or is_email_verified(user):
+        return generic
+    try:
+        await create_and_send_verification(
+            user["id"],
+            str(body.email).strip().lower(),
+        )
+    except Exception as exc:
+        print(f"[EMAIL] Verification resend failed: {type(exc).__name__}", flush=True)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "code": "verification_email_unavailable",
+                "message": "Email delivery is temporarily unavailable. Please try again later.",
+            },
+        ) from exc
+    return generic
+
+
+@app.get("/auth/verify", response_class=HTMLResponse)
+def verify_email_page(token: str = Query(default="", max_length=200)):
+    # Do not verify on GET: email security scanners often pre-open links.
+    # Require the person to click the confirmation button, which POSTs the token.
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,200}", token or ""):
+        return HTMLResponse(
+            "<!doctype html><html><body style='font-family:Arial,sans-serif;padding:40px'>"
+            "<h2>Verification link invalid</h2><p>Request a new verification email from Clip Pirate.</p>"
+            "<a href='/app'>Return to Clip Pirate</a></body></html>",
+            status_code=400,
+        )
+    page = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Verify email</title></head>
+    <body style='font-family:Arial,sans-serif;background:#f5f6fb;padding:40px;color:#172033'>
+      <main style='max-width:480px;margin:8vh auto;background:white;padding:32px;border-radius:16px'>
+        <h2>Verify your email</h2><p>Click below to confirm your email address and activate your Clip Pirate account.</p>
+        <button id='verify' style='padding:12px 18px;background:#6d5dfc;color:white;border:0;border-radius:8px;cursor:pointer'>Confirm email</button>
+        <p id='result' role='status'></p><a id='continue' href='/app' hidden>Continue to Clip Pirate</a>
+      </main>
+      <script>
+        const token = {json.dumps(token)};
+        document.getElementById('verify').addEventListener('click', async () => {{
+          const button = document.getElementById('verify');
+          const result = document.getElementById('result');
+          button.disabled = true; result.textContent = 'Verifying…';
+          try {{
+            const response = await fetch('/auth/verify', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{token}})}});
+            const data = await response.json();
+            result.textContent = data.message || (response.ok ? 'Email verified.' : 'This link is invalid or expired.');
+            if (response.ok) {{ document.getElementById('continue').hidden = false; button.hidden = true; }}
+            else {{ button.disabled = false; }}
+          }} catch (_) {{ result.textContent = 'Could not verify right now. Please try again.'; button.disabled = false; }}
+        }});
+      </script>
+    </body></html>"""
+    return HTMLResponse(page, status_code=200)
+
+
+@app.post("/auth/verify")
+def verify_email(payload: VerifyEmailRequest):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,200}", payload.token or ""):
+        raise HTTPException(status_code=400, detail={"code": "invalid_verification_token", "message": "This verification link is invalid or expired."})
+    if not verify_email_token(payload.token):
+        raise HTTPException(status_code=400, detail={"code": "invalid_verification_token", "message": "This verification link is invalid or expired."})
+    return {"ok": True, "message": "Email verified successfully. You can now log in."}
 
 
 @app.post("/auth/login")
@@ -309,6 +495,15 @@ def login(body: LoginRequest, response: Response):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
     if not verify_password(body.password, user["password_hash"]):
         raise HTTPException(status_code=401, detail="Invalid email or password.")
+    if not is_email_verified(user):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "email_not_verified",
+                "message": "Please verify your email before logging in.",
+                "email": user["email"],
+            },
+        )
     token = create_session(user["id"])
     response.set_cookie(
         SESSION_COOKIE, token, httponly=True, samesite="lax",
@@ -318,8 +513,8 @@ def login(body: LoginRequest, response: Response):
 
 
 @app.post("/signup")
-def signup_alias(body: SignupRequest, response: Response):
-    return signup(body, response)
+def signup_alias(request: Request, body: SignupRequest, response: Response):
+    return signup(request, body, response)
 
 
 @app.post("/login")

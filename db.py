@@ -207,6 +207,8 @@ def init_db():
 
                 password_hash TEXT NOT NULL,
 
+                email_verified INTEGER NOT NULL DEFAULT 1,
+
                 plan TEXT NOT NULL DEFAULT 'free',
 
                 credits INTEGER NOT NULL DEFAULT 50,
@@ -227,6 +229,25 @@ def init_db():
                 daily_generation_limit INTEGER
                     NOT NULL DEFAULT 5
             );
+
+
+            CREATE TABLE IF NOT EXISTS email_verification_tokens (
+
+                token_hash TEXT PRIMARY KEY,
+
+                user_id TEXT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                expires_at TEXT NOT NULL,
+
+                used_at TEXT,
+
+                created_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_email_verification_user
+                ON email_verification_tokens(user_id, created_at DESC);
 
 
             CREATE TABLE IF NOT EXISTS sessions (
@@ -398,6 +419,10 @@ def init_db():
         }
 
         migrations = {
+
+            "email_verified":
+                "ALTER TABLE users ADD COLUMN "
+                "email_verified INTEGER NOT NULL DEFAULT 1",
 
             "subscription_status":
                 "ALTER TABLE users ADD COLUMN "
@@ -646,6 +671,7 @@ def create_user(
                     name,
                     email,
                     password_hash,
+                    email_verified,
                     plan,
                     credits,
                     monthly_limit,
@@ -671,6 +697,7 @@ def create_user(
                     ?,
                     ?,
                     ?,
+                    ?,
                     ?
                 )
                 """,
@@ -679,6 +706,7 @@ def create_user(
                     name.strip(),
                     normalized_email,
                     _hash_password(password),
+                    0,
                     plan,
                     PLAN_CONFIG[plan]["credits"],
                     PLAN_CONFIG[plan]["credits"],
@@ -708,6 +736,68 @@ def create_user(
             raise
 
     return user_id
+
+
+def store_email_verification_token(user_id, raw_token, expires_at):
+    """Store only a hash of a one-time email-verification token."""
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    with _conn() as c:
+        c.execute(
+            "DELETE FROM email_verification_tokens WHERE user_id = ? AND used_at IS NULL",
+            (user_id,),
+        )
+        c.execute(
+            """
+            INSERT INTO email_verification_tokens(
+                token_hash, user_id, expires_at, used_at, created_at
+            ) VALUES (?, ?, ?, NULL, ?)
+            """,
+            (token_hash, user_id, expires_at, now_iso()),
+        )
+
+
+def verify_email_token(raw_token):
+    """Atomically consume a valid, unexpired token and verify its account."""
+    if not raw_token:
+        return False
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    now = now_iso()
+    with _conn() as c:
+        c.execute("BEGIN IMMEDIATE")
+        row = c.execute(
+            """
+            SELECT user_id FROM email_verification_tokens
+            WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?
+            """,
+            (token_hash, now),
+        ).fetchone()
+        if not row:
+            return False
+        updated = c.execute(
+            "UPDATE email_verification_tokens SET used_at = ? WHERE token_hash = ? AND used_at IS NULL",
+            (now, token_hash),
+        )
+        if updated.rowcount != 1:
+            return False
+        c.execute(
+            "UPDATE users SET email_verified = 1 WHERE id = ?",
+            (row["user_id"],),
+        )
+        c.execute(
+            "DELETE FROM email_verification_tokens WHERE user_id = ? AND token_hash != ?",
+            (row["user_id"], token_hash),
+        )
+        return True
+
+
+def is_email_verified(user):
+    """Handle SQLite rows and dictionaries consistently."""
+    if not user:
+        return False
+    try:
+        return bool(user["email_verified"])
+    except (KeyError, IndexError, TypeError):
+        return False
 
 
 def get_user_by_email(email):
@@ -2119,6 +2209,9 @@ def public_user(user):
 
         "email":
             user["email"],
+
+        "email_verified":
+            bool(user["email_verified"]),
 
         "plan":
             plan,
