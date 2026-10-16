@@ -54,20 +54,20 @@ async def send_email(
         )
 
         if response.status_code not in (200, 201, 202):
+            print(
+                f"[BREVO] HTTP {response.status_code}: "
+                f"{response.text[:1000]}",
+                flush=True,
+            )
+            raise RuntimeError(
+                f"Brevo rejected the email request "
+                f"(HTTP {response.status_code})."
+            )
+
         print(
-            f"[BREVO] HTTP {response.status_code}: "
-            f"{response.text[:1000]}",
+            f"[BREVO] API accepted email request. "
+            f"HTTP {response.status_code}.",
             flush=True,
         )
-        raise RuntimeError(
-            f"Brevo rejected the email request "
-            f"(HTTP {response.status_code})."
-        )
 
-    print(
-        f"[BREVO] API accepted email request. "
-        f"HTTP {response.status_code}.",
-        flush=True,
-    )
-
-    return response.json()
+        return response.json()
