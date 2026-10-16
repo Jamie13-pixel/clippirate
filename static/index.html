@@ -2193,9 +2193,10 @@
 
                  // Only reveal the button when the backend explicitly reports
                 // that the email address needs verification.
+                
                 const needsVerification =
-                    /email.{0,30}(not verified|unverified|verification required)|verification required/i
-                        .test(message);
+                    /verify.{0,40}email|email.{0,40}verif|unverified|not verified|verification required/i
+                    .test(message);
 
                 resendContainer.classList.toggle("hidden", !needsVerification);
 
