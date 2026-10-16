@@ -1338,6 +1338,7 @@
                                         <option value="solo">Solo</option>
                                         <option value="dialogue">Dialogue</option>
                                     </select>
+                                    <p id="narrationHint" style="color:var(--muted);font-size:12px;margin-top:6px;"></p>
                                 </div>
 
                                 <div class="form-group">
@@ -1666,7 +1667,7 @@
 
     function applyNarrationAccess() {
 
-    const select = document.getElementById("videoNarration");
+    const select = document.getElementById("narrationMode");
     const hint = document.getElementById("narrationHint");
 
     if (!select) return;
@@ -1681,7 +1682,7 @@
     if (dialogue) {
         dialogue.disabled = locked;
         dialogue.textContent = locked
-            ? "🔒 Dialogue (Starter and above)"
+            ? "🔒 Dialogue (Starter+)"
             : "Dialogue (Host + Guest)";
     }
 
@@ -1695,6 +1696,21 @@
             : "Dialogue uses two voices and tends to hold viewers longer.";
         }
     }
+
+    document.addEventListener("change", function (event) {
+
+        if (!event.target || event.target.id !== "narrationMode") return;
+
+        const plan = String(
+            (currentUser && (currentUser.plan || currentUser.plan_name)) || "free"
+        ).toLowerCase();
+
+        if (plan === "free" && event.target.value === "dialogue") {
+            event.target.value = "solo";
+            showToast("Dialogue narration is available on Starter and above.");
+            goToPlans();
+        }
+    });
 
     function updateCreditCost() {
 
@@ -2293,6 +2309,9 @@
                                 Duration: ${escapeHtml(String(project.duration ?? "-"))} sec
                                 &nbsp;•&nbsp;
                                 Ratio: ${escapeHtml(project.aspect_ratio || "-")}
+                                ${String(project.narration_mode || "").toLowerCase() === "dialogue"
+                                    ? '&nbsp;•&nbsp;<span style="color:#f5b942;font-weight:600;">🎙️ Dialogue</span>'
+                                    : ""}
                             </div>
 
                         </div>
@@ -2368,6 +2387,8 @@
 
             const captions = document.getElementById("videoCaptions").checked;
 
+            const narrationMode = document.getElementById("narrationMode").value;
+
             if (!topic) {
 
                 showGenerationStatus("Please enter a video topic.", "error");
@@ -2392,6 +2413,7 @@
                         aspect_ratio: aspectRatio,
                         voice,
                         captions,
+                        narration_mode: narrationMode,
                         template_id: activeTemplate ? activeTemplate.id : ""
                     })
                 });
@@ -2979,6 +3001,53 @@
     }
 
 
+    function planFeatures(planId, plan) {
+
+        const credits = Number(plan && plan.credits) || 0;
+        const daily = Number(plan && (plan.daily_limit ?? plan.videos_per_day)) || 0;
+
+        const lines = [];
+
+        if (planId === "free") {
+            lines.push({ text: "Solo narration" });
+            lines.push({ text: "Professional, energetic & calm voices" });
+            lines.push({ text: "Dialogue narration", locked: true });
+        } else {
+            lines.push({ text: "Dialogue narration (Host + Guest)", hero: true });
+            lines.push({ text: "2 AI voices in one video", hero: true });
+            lines.push({ text: "Solo narration" });
+        }
+
+        if (daily > 0) lines.push({ text: `${daily} videos per day` });
+        lines.push({ text: `${credits} credits` });
+
+        return lines;
+    }
+
+
+    function planFeaturesHtml(planId, plan) {
+
+        return `
+            <ul style="list-style:none;margin:14px 0 0;padding:0;font-size:13px;">
+                ${planFeatures(planId, plan).map(item => {
+
+                    const color = item.hero ? "#f5b942" : "inherit";
+                    const weight = item.hero ? "700" : "400";
+                    const opacity = item.locked ? ".45" : ".9";
+                    const deco = item.locked ? "line-through" : "none";
+                    const mark = item.locked ? "✗" : "✓";
+
+                    return `
+                        <li style="padding:5px 0;color:${color};font-weight:${weight};opacity:${opacity};text-decoration:${deco};">
+                            ${mark} ${escapeHtml(item.text)}
+                        </li>
+                    `;
+                }).join("")}
+            </ul>
+        `;
+    }
+
+
     function renderPlans(plans) {
 
         const grid = document.getElementById("plansGrid");
@@ -3033,7 +3102,10 @@
                     ${currentBadge}
                     <div style="font-size:15px;font-weight:700;">${escapeHtml(planName)}</div>
                     <div style="font-size:22px;font-weight:800;margin:8px 0 2px;">${escapeHtml(formatPlanPrice(plan))}</div>
-                    <div style="font-size:13px;opacity:.7;">${Number(plan && plan.credits) || 0} credits</div>
+                    ${planId !== "free"
+                        ? '<div style="display:inline-block;margin-top:8px;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:700;background:rgba(245,185,66,.15);color:#f5b942;">🎙️ Dialogue Narration</div>'
+                        : ""}
+                    ${planFeaturesHtml(planId, plan)}
                     <button
                         type="button"
                         ${buttonDisabled ? "disabled" : ""}

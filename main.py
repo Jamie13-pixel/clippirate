@@ -434,10 +434,19 @@ async def process_video_job(job_id: str, user_id: str, topic: str, settings: dic
                 dialogue = [("HOST", line) for line in lines]
 
         if not dialogue:
-            raise RuntimeError("Quality-controlled script contains no dialogue.")
-            print(f"[JOB {job_id}] Dialogue lines: {len(dialogue)}", flush=True)
-            print(f"[JOB {job_id}] narration_mode={narration_mode} speakers={[s for s, _ in dialogue][:6]}", flush=True)
+            raise RuntimeError(
+                "Quality-controlled script contains no dialogue."
+            )
 
+        print(
+            f"[JOB {job_id}] Dialogue lines: {len(dialogue)}",
+            flush=True
+        )
+
+        print(
+            f"[JOB {job_id}] narration_mode={narration_mode}",
+            flush=True
+        )
         scene_hints = align_visual_hints(orig_sentences, visuals, [line for _, line in dialogue])
         print(f"[JOB {job_id}] Visual hints: {scene_hints}", flush=True)
 
@@ -525,17 +534,24 @@ async def generate_video(request: Request, body: VideoRequest):
     narration_mode = (body.narration_mode or "solo").strip().lower()
 
     if narration_mode not in ("solo", "dialogue"):
-        raise HTTPException(status_code=422, detail="Unsupported narration mode.")
+        raise HTTPException(
+            status_code=422,
+            detail="Unsupported narration mode."
+        )
 
-        if narration_mode == "dialogue" and str(user["plan"]).lower() == "free":
-            raise HTTPException(
-                status_code=403,
-                detail={
-                    "code": "upgrade_required",
-                    "message": "Dialogue narration is available only on Starter, Pro and Mega plans.",
-                    "required_plan": "starter",
-                    "upgrade_required": True,
-                },
+    if (
+        narration_mode == "dialogue"
+        and str(user["plan"]).lower() == "free"
+    ):
+        raise HTTPException(
+            status_code=403,
+            detail={
+                "code": "upgrade_required",
+                "message":
+                    "Dialogue narration is available only on Starter, Pro and Mega plans.",
+                "required_plan": "starter",
+                "upgrade_required": True,
+            },
         )
     
     topic = body.topic.strip()
