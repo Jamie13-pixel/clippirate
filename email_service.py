@@ -53,8 +53,7 @@ async def send_email(
             json=payload,
         )
 
-    if response.status_code not in (200, 201, 202):
-        # Log the API response, never the API key.
+        if response.status_code not in (200, 201, 202):
         print(
             f"[BREVO] HTTP {response.status_code}: "
             f"{response.text[:1000]}",
@@ -64,5 +63,11 @@ async def send_email(
             f"Brevo rejected the email request "
             f"(HTTP {response.status_code})."
         )
+
+    print(
+        f"[BREVO] API accepted email request. "
+        f"HTTP {response.status_code}.",
+        flush=True,
+    )
 
     return response.json()
