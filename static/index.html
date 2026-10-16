@@ -901,6 +901,57 @@
         }
 
         /* =========================
+           TEMPLATE THEME (whole app)
+        ========================= */
+
+        #appBackdrop {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            opacity: 0;
+            pointer-events: none;
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            transition: opacity 0.5s ease;
+        }
+
+        #appBackdrop.on { opacity: 1; }
+
+        #appScreen { position: relative; z-index: 1; }
+
+        body.themed .sidebar {
+            background: rgba(13, 15, 20, 0.82);
+            backdrop-filter: blur(10px);
+        }
+
+        body.themed .panel,
+        body.themed .form-card,
+        body.themed .stat-card,
+        body.themed .analytics-card,
+        body.themed .project-card,
+        body.themed .template-card,
+        body.themed .settings-nav,
+        body.themed .user-mini {
+            background: rgba(17, 20, 27, 0.78);
+            backdrop-filter: blur(8px);
+        }
+
+        body.themed .nav-button.active {
+            background: var(--accent-soft, rgba(124, 92, 255, 0.15));
+            color: var(--accent, #c3b8ff);
+        }
+
+        body.themed .credit-pill {
+            background: var(--accent-soft, rgba(124, 92, 255, 0.12));
+            border-color: var(--accent-soft, rgba(124, 92, 255, 0.25));
+            color: var(--accent, #c7bcff);
+        }
+
+        body.themed .create-btn,
+        body.themed .primary-btn { color: var(--on-primary, #fff); }
+
+        /* =========================
            TOAST
         ========================= */
 
@@ -996,6 +1047,8 @@
 </head>
 
 <body>
+
+<div id="appBackdrop"></div>
 
 <!-- =========================================================
      AUTH SCREEN
@@ -1574,6 +1627,19 @@
                                 </div>
                             </div>
 
+                            <div class="setting-row">
+                                <div class="setting-info">
+                                    <h3>Template Themes</h3>
+                                    <p>Change the app's colors and background to match the template you pick.</p>
+                                </div>
+                                <div class="setting-control">
+                                    <label class="checkbox-row">
+                                        <input id="prefThemes" type="checkbox">
+                                        Enabled
+                                    </label>
+                                </div>
+                            </div>
+
                             <button class="create-btn save-settings" onclick="savePreferences()">
                                 Save Preferences
                             </button>
@@ -2115,6 +2181,9 @@
 
         currentUser = null;
 
+        activeTemplate = null;
+        showActiveTemplate();
+
         if (statusTimer) {
             clearTimeout(statusTimer);
             statusTimer = null;
@@ -2623,31 +2692,154 @@
     ===================================================== */
 
     const FALLBACK_TEMPLATES = [
-        { id: "viral-facts", name: "Viral Facts", icon: "⚡",
+        { accent: "#f5b942", id: "viral-facts", name: "Viral Facts", icon: "⚡",
           description: "Fast-paced fact videos with strong hooks.",
           prompt: "Amazing facts about", narration_mode: "solo" },
-        { id: "amazing-places", name: "Amazing Places", icon: "🌍",
+        { accent: "#31c48d", id: "amazing-places", name: "Amazing Places", icon: "🌍",
           description: "Create engaging destination and travel videos.",
           prompt: "Amazing places in" },
-        { id: "did-you-know", name: "Did You Know?", icon: "🧠",
+        { accent: "#5cc8ff", id: "did-you-know", name: "Did You Know?", icon: "🧠",
           description: "Educational short-form videos built around surprising facts.",
           prompt: "Did you know facts about" },
-        { id: "storytelling", name: "Storytelling", icon: "📖",
+        { accent: "#c77dff", id: "storytelling", name: "Storytelling", icon: "📖",
           description: "Build short narratives with a strong opening and conclusion.",
           prompt: "A fascinating short story about" },
-        { id: "motivation", name: "Motivation", icon: "💡",
+        { accent: "#ff8a5c", id: "motivation", name: "Motivation", icon: "💡",
           description: "Short motivational and inspirational content.",
           prompt: "An inspiring story about" },
-        { id: "top-5-list", name: "Top 5 List", icon: "🎯",
+        { accent: "#ef5b6b", id: "top-5-list", name: "Top 5 List", icon: "🎯",
           description: "Create countdown-style videos and ranked lists.",
           prompt: "Top 5 facts about" },
-        { id: "podcast-style", name: "Podcast Style", icon: "🎙️",
+        { accent: "#7c5cff", id: "podcast-style", name: "Podcast Style", icon: "🎙️",
           description: "A Host and a Guest talk through your topic like a short podcast clip.",
           prompt: "A podcast conversation about", narration_mode: "dialogue" },
-        { id: "news-reporter", name: "News Reporter", icon: "📰",
+        { accent: "#4f8cff", id: "news-reporter", name: "News Reporter", icon: "📰",
           description: "An anchor and a correspondent break down the story.",
           prompt: "Breaking news report on", narration_mode: "dialogue" }
     ];
+
+
+    function safeAccent(template) {
+
+        const accent = String((template && template.accent) || "");
+
+        return /^#[0-9a-fA-F]{6}$/.test(accent) ? accent : "";
+    }
+
+
+    function hexToRgba(hex, alpha) {
+
+        const n = parseInt(hex.slice(1), 16);
+
+        return `rgba(${(n >> 16) & 255}, ${(n >> 8) & 255}, ${n & 255}, ${alpha})`;
+    }
+
+
+    function safeCover(template) {
+
+        const cover = String((template && template.cover_url) || "");
+
+        return /^https:\/\/[^\s"'()<>\\]+$/.test(cover) ? cover : "";
+    }
+
+
+    function shadeHex(hex, amount) {
+
+        const n = parseInt(hex.slice(1), 16);
+
+        const r = Math.round(((n >> 16) & 255) * (1 - amount));
+        const g = Math.round(((n >> 8) & 255) * (1 - amount));
+        const b = Math.round((n & 255) * (1 - amount));
+
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+
+    function readableOn(hex) {
+
+        const n = parseInt(hex.slice(1), 16);
+
+        const luminance =
+            (0.299 * ((n >> 16) & 255) +
+             0.587 * ((n >> 8) & 255) +
+             0.114 * (n & 255)) / 255;
+
+        return luminance > 0.6 ? "#111111" : "#ffffff";
+    }
+
+
+    function applyAppTheme(template) {
+
+        const root = document.documentElement;
+        const backdrop = document.getElementById("appBackdrop");
+
+        let enabled = true;
+
+        try {
+            enabled = getPreferences().themes !== false;
+        } catch (error) {
+            enabled = true;
+        }
+
+        const accent = enabled ? safeAccent(template) : "";
+        const cover = enabled ? safeCover(template) : "";
+
+        const vars = ["--primary", "--primary-hover", "--accent", "--accent-soft", "--on-primary"];
+
+        if (accent) {
+            root.style.setProperty("--primary", accent);
+            root.style.setProperty("--primary-hover", shadeHex(accent, 0.15));
+            root.style.setProperty("--accent", accent);
+            root.style.setProperty("--accent-soft", hexToRgba(accent, 0.18));
+            root.style.setProperty("--on-primary", readableOn(accent));
+        } else {
+            vars.forEach(name => root.style.removeProperty(name));
+        }
+
+        if (backdrop) {
+
+            if (cover) {
+                backdrop.style.backgroundImage =
+                    `linear-gradient(rgba(11,13,18,.70), rgba(11,13,18,.90)), url("${cover}")` +
+                    (accent
+                        ? `, radial-gradient(circle at top left, ${hexToRgba(accent, 0.38)}, transparent 48%)`
+                        : "");
+            } else if (accent) {
+                backdrop.style.backgroundImage =
+                    `radial-gradient(circle at top left, ${hexToRgba(accent, 0.38)}, transparent 48%), ` +
+                    `radial-gradient(circle at bottom right, ${hexToRgba(accent, 0.20)}, transparent 42%)`;
+            } else {
+                backdrop.style.backgroundImage = "";
+            }
+
+            backdrop.classList.toggle("on", !!(cover || accent));
+        }
+
+        document.body.classList.toggle("themed", !!(cover || accent));
+    }
+
+
+    function templatePreviewStyle(template) {
+
+        const accent = safeAccent(template);
+        const cover = String((template && template.cover_url) || "");
+
+        const coverOk = /^https:\/\/[^\s"'()<>\\]+$/.test(cover);
+
+        if (coverOk) {
+            const under = accent
+                ? `, linear-gradient(145deg, ${hexToRgba(accent, .45)}, ${hexToRgba(accent, .08)})`
+                : "";
+
+            return `background: linear-gradient(rgba(11,13,18,.10), rgba(11,13,18,.60)), url(${cover}) center / cover no-repeat${under};`;
+        }
+
+        if (accent) {
+            return `background: linear-gradient(145deg, ${hexToRgba(accent, .45)}, ${hexToRgba(accent, .08)});`;
+        }
+
+        return "";
+    }
 
 
     function templateModeBadge(template) {
@@ -2683,7 +2875,7 @@
             return `
                 <div class="template-card">
 
-                    <div class="template-preview">
+                    <div class="template-preview" style="${escapeAttribute(templatePreviewStyle(template))}">
                         ${escapeHtml(template.icon || "🎬")}
                     </div>
 
@@ -2805,6 +2997,21 @@
         if (!chip) return;
 
         chip.classList.toggle("hidden", !activeTemplate);
+
+        const accent = safeAccent(activeTemplate);
+
+        chip.style.background = accent
+            ? hexToRgba(accent, 0.18)
+            : "rgba(124,92,255,0.15)";
+        chip.style.color = accent || "#c3b8ff";
+
+        applyAppTheme(activeTemplate);
+
+        const formCard = document.querySelector("#page-create .form-card");
+
+        if (formCard) {
+            formCard.style.borderTop = accent ? `3px solid ${accent}` : "";
+        }
 
         document.getElementById("activeTemplateName").textContent =
             activeTemplate ? activeTemplate.name : "";
@@ -3440,7 +3647,8 @@
             duration: "30",
             ratio: "9:16",
             voice: "professional",
-            captions: true
+            captions: true,
+            themes: true
         };
 
         try {
@@ -3466,6 +3674,7 @@
         document.getElementById("prefRatio").value = saved.ratio;
         document.getElementById("prefVoice").value = saved.voice;
         document.getElementById("prefCaptions").checked = saved.captions;
+        document.getElementById("prefThemes").checked = saved.themes !== false;
     }
 
 
@@ -3475,7 +3684,8 @@
             duration: document.getElementById("prefDuration").value,
             ratio: document.getElementById("prefRatio").value,
             voice: document.getElementById("prefVoice").value,
-            captions: document.getElementById("prefCaptions").checked
+            captions: document.getElementById("prefCaptions").checked,
+            themes: document.getElementById("prefThemes").checked
         };
 
         try {
@@ -3487,6 +3697,8 @@
             showToast("Could not save preferences in this browser.");
             return;
         }
+
+        applyAppTheme(activeTemplate);
 
         showToast("Preferences saved.");
     }

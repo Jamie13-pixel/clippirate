@@ -497,6 +497,55 @@ Use exactly this structure:
 
 
 # ============================================================
+# TEMPLATE STYLE
+# ============================================================
+
+PACE_GUIDANCE = {
+    "fast": "Fast pace: very short, punchy sentences and quick beats.",
+    "slow": "Slow pace: slightly longer, atmospheric sentences with room "
+            "to breathe (still one sentence per line).",
+}
+
+
+def _template_block(template, with_visuals):
+    """Extra prompt text built from a template's private style fields.
+
+    Returns "" when there is no template or it has nothing to add."""
+
+    if not isinstance(template, dict):
+        return ""
+
+    lines = []
+
+    style = str(template.get("script_style") or "").strip()
+    if style:
+        lines.append(f"- Script style: {style}")
+
+    pace = PACE_GUIDANCE.get(str(template.get("pace") or "").lower())
+    if pace:
+        lines.append(f"- {pace}")
+
+    keywords = str(template.get("footage_keywords") or "").strip()
+    if with_visuals and keywords:
+        lines.append(
+            f"- Footage themes to favour when they fit the line: {keywords}. "
+            "Every visual must still match what its line is about."
+        )
+
+    if not lines:
+        return ""
+
+    name = str(template.get("name") or "this template").strip()
+
+    return (
+        f"STYLE TEMPLATE ({name}):\n"
+        + "\n".join(lines)
+        + "\n\nFollow the style above, but the target word count, the "
+        "one-sentence-per-line rule and the JSON structure below still apply.\n\n"
+    )
+
+
+# ============================================================
 # GENERATE SCRIPT
 # ============================================================
 
@@ -506,6 +555,7 @@ def generate_script(
     with_visuals: bool = False,
     narration_mode: str = "solo",
     return_speakers: bool = False,
+    template: dict = None,
 ):
     """Generate the narration script.
 
@@ -547,6 +597,12 @@ def generate_script(
     prompt = _build_prompt(
         topic, duration, word_count, with_visuals, dialogue_mode
     )
+
+    style_block = _template_block(template, with_visuals)
+
+    if style_block:
+        marker = "Return ONLY valid JSON."
+        prompt = prompt.replace(marker, style_block + marker, 1)
 
     # --------------------------------------------------------
     # Gemini request

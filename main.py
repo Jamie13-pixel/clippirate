@@ -393,6 +393,7 @@ async def process_video_job(job_id: str, user_id: str, topic: str, settings: dic
             with_visuals=True,
             narration_mode=narration_mode,
             return_speakers=True,
+            template=settings.get("template"),
         )
         if not script_text:
             raise RuntimeError("Script generator returned an empty script.")
