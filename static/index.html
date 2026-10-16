@@ -1104,6 +1104,19 @@
             </div>
 
             <div id="authMessage" class="auth-message"></div>
+            <div id="resendVerificationContainer" class="hidden"
+                 style="margin: 0 0 16px; text-align: center;">
+
+                <button
+                    type="button"
+                    id="resendVerificationButton"
+                    class="secondary-btn"
+                    onclick="resendVerificationEmail()"
+                    style="width: 100%;">
+
+                    Resend verification email
+                </button>
+            </div>
 
             <!-- LOGIN -->
             <form id="loginForm">
@@ -1972,6 +1985,8 @@
         document.getElementById("authTitle").textContent = "Welcome back";
         document.getElementById("authSubtitle").textContent =
             "Sign in to continue to ClipPirate.";
+        document.getElementById("resendVerificationContainer")
+            .classList.add("hidden");
 
         clearAuthMessage();
     }
@@ -1988,9 +2003,64 @@
         document.getElementById("authTitle").textContent = "Create your account";
         document.getElementById("authSubtitle").textContent =
             "Start creating videos with ClipPirate.";
+        document.getElementById("resendVerificationContainer")
+            .classList.add("hidden");
 
         clearAuthMessage();
     }
+
+
+    async function resendVerificationEmail() {
+        const emailInput = document.getElementById("loginEmail");
+        const button = document.getElementById("resendVerificationButton");
+        const container = document.getElementById("resendVerificationContainer");
+
+        const email = emailInput.value.trim();
+
+        if (!email) {
+            showAuthMessage(
+                "Enter your email address above before requesting verification.",
+                "error"
+            );
+            emailInput.focus();
+            return;
+        }
+
+        if (!emailInput.checkValidity()) {
+            showAuthMessage("Enter a valid email address.", "error");
+            emailInput.focus();
+            return;
+        }
+
+        button.disabled = true;
+        button.textContent = "Sending...";
+
+        try {
+            const data = await api("/auth/resend-verification", {
+                method: "POST",
+                body: JSON.stringify({ email })
+            });
+
+            showAuthMessage(
+                data.message ||
+                "If that address has an unverified account, a new verification email will be sent.",
+                "success"
+            );
+
+            container.classList.add("hidden");
+
+        } catch (error) {
+            showAuthMessage(
+                error.message ||
+                "Could not request a verification email. Please try again later.",
+                "error"
+            );
+        } finally {
+            button.disabled = false;
+            button.textContent = "Resend verification email";
+        }
+    }
+
 
 
     /* =====================================================
@@ -2111,16 +2181,25 @@
 
                 enterApplication();
 
+            
             } catch (error) {
+                const message = error.message || "Login failed.";
 
-                showAuthMessage(error.message || "Login failed.");
+                showAuthMessage(message, "error");
+
+                 const resendContainer = document.getElementById(
+                     "resendVerificationContainer"
+                );
+
+                 // Only reveal the button when the backend explicitly reports
+                // that the email address needs verification.
+                const needsVerification =
+                    /email.{0,30}(not verified|unverified|verification required)|verification required/i
+                        .test(message);
+
+                resendContainer.classList.toggle("hidden", !needsVerification);
 
             } finally {
-
-                button.disabled = false;
-                button.textContent = "Login";
-            }
-        });
 
 
     /* =====================================================
