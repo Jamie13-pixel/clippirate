@@ -1,6 +1,9 @@
 import os
 import uuid
 import subprocess
+import asyncio
+import time
+import edge_tts
 
 from elevenlabs.client import AsyncElevenLabs
 from moviepy import AudioFileClip, concatenate_audioclips
@@ -91,6 +94,17 @@ def get_fallback_voice(profile):
         "onwK4e9ZLuTAKqWW03F9"
     )
 
+    EDGE_VOICES = {
+    "professional": ["en-US-GuyNeural", "en-US-JennyNeural"],
+    "energetic":    ["en-US-ChristopherNeural", "en-US-AriaNeural"],
+    "calm":         ["en-US-AndrewNeural", "en-US-EmmaNeural"],
+    }
+
+
+def build_edge_voice_map(profile):
+    pair = EDGE_VOICES.get((profile or DEFAULT_VOICE).lower(), EDGE_VOICES[DEFAULT_VOICE])
+    return {"HOST": pair[0], "GUEST": pair[1]}
+
 # ============================================================
 # TTS SYNTHESIS
 # ============================================================
@@ -128,17 +142,203 @@ async def fetch_account_voices():
         return []
 
 
+class TTSUnavailable(RuntimeError):
+    """Voice generation failed in a way the user should hear about plainly."""
+
+
+MAX_ATTEMPTS = int(os.getenv("ELEVENLABS_MAX_ATTEMPTS", "4"))
+ELEVENLABS_MODEL = os.getenv("ELEVENLABS_MODEL", "eleven_multilingual_v2")
+
+# Keep this at or below your ElevenLabs plan's concurrent-request limit.
+_tts_slots = asyncio.Semaphore(int(os.getenv("ELEVENLABS_MAX_CONCURRENCY", "2")))
+
+
+def _status_of(exc):
+    return getattr(exc, "status_code", None)
+
+
+def _is_quota_error(exc):
+    text = str(getattr(exc, "body", "") or exc).lower()
+    return "quota_exceeded" in text or "exceeds your quota" in text
+
+
+def _is_retryable(exc):
+    if isinstance(exc, (asyncio.TimeoutError, TimeoutError, ConnectionError)):
+        return True
+    status = _status_of(exc)
+    if status is None:
+        # Network-level errors from the HTTP client (timeouts, resets).
+        return type(exc).__module__.startswith("httpx")
+    return status == 429 or status >= 500
+
+
+def _retry_delay(exc, attempt):
+    headers = getattr(exc, "headers", None) or {}
+    try:
+        return min(float(headers.get("retry-after")), 30.0)
+    except (TypeError, ValueError, AttributeError):
+        pass
+    return min(2 ** attempt, 15) + random.uniform(0, 1)
+
+
+def _remove(path):
+    try:
+        if os.path.exists(path):
+            os.remove(path)
+    except OSError:
+        pass
+
+
 async def _synthesize_line(text, voice, path):
-    audio = _get_client().text_to_speech.convert(
-        voice_id=voice,
-        text=text,
-        model_id="eleven_multilingual_v2",
-        output_format="mp3_44100_64",
+    for attempt in range(1, MAX_ATTEMPTS + 1):
+        try:
+            async with _tts_slots:
+                audio = _get_client().text_to_speech.convert(
+                    voice_id=voice,
+                    text=text,
+                    model_id=ELEVENLABS_MODEL,
+                    output_format="mp3_44100_64",
+                )
+                with open(path, "wb") as f:
+                    async for chunk in audio:
+                        if chunk:
+                            f.write(chunk)
+            return
+
+        except Exception as exc:
+            _remove(path)
+
+            if _is_quota_error(exc):
+                _block_eleven(3600) 
+                print("[TTS] ELEVENLABS QUOTA EXHAUSTED - top up or upgrade the plan.", flush=True)
+                raise TTSUnavailable(
+                    "Voice generation is temporarily unavailable. "
+                    "Your credits were refunded. Please try again later."
+                ) from exc
+
+            if not _is_retryable(exc) or attempt == MAX_ATTEMPTS:
+                raise
+
+            delay = _retry_delay(exc, attempt)
+            print(
+                f"[TTS] attempt {attempt}/{MAX_ATTEMPTS} failed "
+                f"({type(exc).__name__} {_status_of(exc)}); retrying in {delay:.1f}s",
+                flush=True,
+            )
+            await asyncio.sleep(delay)
+    _eleven_blocked_until = 0.0
+
+
+def _eleven_available():
+    return time.time() >= _eleven_blocked_until
+
+
+def _block_eleven(seconds):
+    global _eleven_blocked_until
+    _eleven_blocked_until = max(_eleven_blocked_until, time.time() + seconds)
+
+
+async def _synthesize_line_edge(text, voice, path):
+    for attempt in range(1, 4):
+        try:
+            await asyncio.wait_for(
+                edge_tts.Communicate(text, voice).save(path),
+                timeout=45
+            )
+            if os.path.getsize(path) == 0:
+                raise RuntimeError("Backup voice returned empty audio.")
+            return
+        except Exception:
+            _remove(path)
+            if attempt == 3:
+                raise
+            await asyncio.sleep(2 * attempt)
+
+
+async def _synthesize_eleven_line(text, voice, path, voice_profile):
+    try:
+        await _synthesize_line(text, voice, path)
+    except TTSUnavailable:
+        raise
+    except Exception as exc:
+        # Only a problem with this one voice justifies swapping the voice.
+        if _status_of(exc) in (400, 404, 422):
+            await _synthesize_line(text, get_fallback_voice(voice_profile), path)
+        else:
+            raise
+
+
+def _normalize_dialogue(dialogue):
+    items = []
+    for item in dialogue:
+        if isinstance(item, str):
+            speaker, text = "HOST", item.strip()
+        elif isinstance(item, (list, tuple)) and len(item) == 2:
+            speaker, text = item
+            speaker = str(speaker).strip() or "HOST"
+            text = str(text).strip()
+        else:
+            raise ValueError("Invalid dialogue format.")
+        if text:
+            items.append((speaker.upper(), text))
+    return items
+
+
+async def _render_lines(items, provider, voice_profile, temp_dir):
+    voices = (
+        build_voice_map(voice_profile)
+        if provider == "elevenlabs"
+        else build_edge_voice_map(voice_profile)
     )
-    with open(path, "wb") as f:
-        async for chunk in audio:
-            if chunk:
-                f.write(chunk)
+
+    rendered = []
+
+    try:
+        for speaker, text in items:
+            voice = voices.get(speaker, voices["GUEST"])
+            path = os.path.join(temp_dir, f"line_{uuid.uuid4().hex}.mp3")
+            rendered.append((speaker, text, path))   # registered first so cleanup sees it
+
+            if provider == "elevenlabs":
+                await _synthesize_eleven_line(text, voice, path, voice_profile)
+            else:
+                await _synthesize_line_edge(text, voice, path)
+
+        return rendered
+
+    except Exception:
+        for _, _, p in rendered:
+            _remove(p)
+        raise
+
+
+async def _render_with_backup(items, voice_profile, temp_dir):
+    primary = os.getenv("TTS_PRIMARY", "elevenlabs").strip().lower()
+    order = ["edge", "elevenlabs"] if primary == "edge" else ["elevenlabs", "edge"]
+
+    last_exc = None
+
+    for provider in order:
+
+        if provider == "elevenlabs" and not _eleven_available():
+            print("[TTS] ElevenLabs temporarily skipped.", flush=True)
+            continue
+
+        try:
+            result = await _render_lines(items, provider, voice_profile, temp_dir)
+            print(f"[TTS] Rendered with {provider}.", flush=True)
+            return result
+
+        except Exception as exc:
+            last_exc = exc
+            if provider == "elevenlabs":
+                _block_eleven(60)
+            print(f"[TTS] {provider} failed ({type(exc).__name__}): {exc}", flush=True)
+
+    raise TTSUnavailable(
+        "The voice service is busy right now. "
+        "Your credits were refunded. Please try again in a minute."
+    ) from last_exc
 
 
 # ============================================================
@@ -190,123 +390,29 @@ async def create_dialogue_voice(
     dialogue,
     output_file,
     voice_profile=DEFAULT_VOICE,
-    temp_dir="data/temp_clips",
+    temp_dir=None,
     target_duration=None,
 ):
     """
-    Synthesize dialogue and return timing metadata.
-
-    If target_duration is supplied, the completed narration
-    is adjusted to fit that duration.
-
-    Example:
-
-        target_duration=30
-
-    makes the narration approximately 30 seconds long.
+    Synthesize dialogue and return timing metadata. Uses ElevenLabs first
+    and falls back to a backup voice if it fails.
     """
 
-    voices = build_voice_map(
-        voice_profile
-    )
+    temp_dir = temp_dir or os.path.join(os.getenv("DATA_DIR", "data"), "temp_clips")
+    os.makedirs(temp_dir, exist_ok=True)
 
-    os.makedirs(
-        temp_dir,
-        exist_ok=True
-    )
+    items = _normalize_dialogue(dialogue)
+
+    if not items:
+        raise ValueError("No dialogue was generated.")
 
     line_paths = []
-
     combined_file = None
     adjusted_file = None
 
     try:
 
-        # ----------------------------------------------------
-        # SYNTHESIZE EACH DIALOGUE LINE
-        # ----------------------------------------------------
-
-        for item in dialogue:
-
-            if isinstance(item, str):
-
-                speaker = "HOST"
-                text = item.strip()
-
-            elif (
-                isinstance(item, (list, tuple))
-                and len(item) == 2
-            ):
-
-                speaker, text = item
-
-                speaker = (
-                    str(speaker).strip()
-                    or "HOST"
-                )
-
-                text = str(
-                    text
-                ).strip()
-
-            else:
-
-                raise ValueError(
-                    "Invalid dialogue format."
-                )
-
-            if not text:
-                continue
-
-            voice = voices.get(
-                speaker.upper(),
-                voices.get("GUEST")
-            )
-
-            path = os.path.join(
-                temp_dir,
-                f"line_{uuid.uuid4().hex}.mp3"
-            )
-
-            try:
-
-                await _synthesize_line(
-                    text,
-                    voice,
-                    path
-                )
-
-            except Exception as exc:
-
-                print(
-                    f"[TTS] Voice failed ({voice}), "
-                    f"falling back: {exc}",
-                    flush=True
-                )
-
-                fallback_voice = get_fallback_voice(
-                    voice_profile
-                )
-
-                await _synthesize_line(
-                    text,
-                    fallback_voice,
-                    path
-                )
-
-            line_paths.append(
-                (
-                    speaker,
-                    text,
-                    path
-                )
-            )
-
-        if not line_paths:
-
-            raise ValueError(
-                "No dialogue was generated."
-            )
+        line_paths = await _render_with_backup(items, voice_profile, temp_dir)
 
         # ----------------------------------------------------
         # LOAD GENERATED AUDIO
@@ -319,9 +425,8 @@ async def create_dialogue_voice(
 
         for speaker, text, path in line_paths:
 
-            clip = AudioFileClip(
-                path
-            )
+            clip = await asyncio.to_thread(AudioFileClip, path)
+
 
             duration = float(
                 clip.duration
@@ -361,10 +466,8 @@ async def create_dialogue_voice(
             f"combined_{uuid.uuid4().hex}.mp3"
         )
 
-        final_audio.write_audiofile(
-            combined_file,
-            logger=None
-        )
+        await asyncio.to_thread(final_audio.write_audiofile, combined_file, logger=None)
+
 
         final_audio.close()
 
@@ -395,7 +498,8 @@ async def create_dialogue_voice(
                 f"adjusted_{uuid.uuid4().hex}.mp3"
             )
 
-            _adjust_audio_duration(
+            await asyncio.to_thread(
+                _adjust_audio_duration,
                 combined_file,
                 adjusted_file,
                 target_duration

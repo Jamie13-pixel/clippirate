@@ -12,3 +12,4 @@ email-validator
 google-genai
 modal
 elevenlabs
+edge-tts
