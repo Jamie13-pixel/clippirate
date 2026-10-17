@@ -69,6 +69,7 @@ from db import (
     create_session,
     get_user_by_session,
     delete_session,
+    delete_expired_auth_rows,
     verify_password,
     reserve_credits,
     refund_credits,
@@ -1041,10 +1042,13 @@ def cleanup_old_files():
     audio = _delete_old_files(DATA_DIR / "audio", 86400)
     clips = _delete_old_files(DATA_DIR / "temp_clips", 86400)
 
+    sessions, verif_tokens, reset_tokens = delete_expired_auth_rows()
+
     usage = shutil.disk_usage(DATA_DIR)
     print(
         f"[CLEANUP] expired_videos={videos_removed} stray_videos={stray_videos} "
         f"audio={audio} temp_clips={clips} "
+        f"sessions={sessions} verify_tokens={verif_tokens} reset_tokens={reset_tokens} "
         f"disk_used={usage.used // 2**20}MB free={usage.free // 2**20}MB",
         flush=True,
     )

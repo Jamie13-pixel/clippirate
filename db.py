@@ -1027,6 +1027,34 @@ def delete_session(token):
             )
         )
 
+def delete_expired_auth_rows():
+
+    """
+    Remove expired sessions and expired email-verification / password-reset
+    tokens. Returns (sessions, verification_tokens, reset_tokens) removed.
+    """
+
+    now = now_iso()
+
+    with _conn() as c:
+
+        sessions = c.execute(
+            "DELETE FROM sessions WHERE expires_at < ?",
+            (now,)
+        ).rowcount
+
+        verification = c.execute(
+            "DELETE FROM email_verification_tokens WHERE expires_at < ?",
+            (now,)
+        ).rowcount
+
+        resets = c.execute(
+            "DELETE FROM password_reset_tokens WHERE expires_at < ?",
+            (now,)
+        ).rowcount
+
+    return sessions, verification, resets
+
 
 # ============================================================
 # SUBSCRIPTION EXPIRY
