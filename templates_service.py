@@ -63,7 +63,15 @@ COVER_URL = re.compile(r"^https://[^\s\"'()<>\\]{4,290}$")
 
 # These steer script writing, stock footage and voice-over. They stay on the
 # server (never sent to the browser); /generate looks them up by template id.
-PRIVATE_FIELDS = ("script_style", "footage_keywords", "pace")
+PRIVATE_FIELDS = (
+    "script_style",
+    "footage_keywords",
+    "pace",
+    "hook_style",
+    "ending_style",
+    "dialogue_style",
+    "retention_strategy"
+)
 
 INACTIVE_VALUES = {"false", "0", "no", "off", "inactive", "disabled", "hidden"}
 
@@ -74,9 +82,23 @@ INACTIVE_VALUES = {"false", "0", "no", "off", "inactive", "disabled", "hidden"}
 # duration / ratio / voice are None = "use the user's own preferences".
 # ------------------------------------------------------------
 
-def _builtin(id_, name, icon, description, prompt,
-             script_style, footage_keywords, pace, narration_mode=None,
-             accent=None, cover_url=None):
+def _builtin(
+    id_,
+    name,
+    icon,
+    description,
+    prompt,
+    script_style,
+    footage_keywords,
+    pace,
+    narration_mode=None,
+    accent=None,
+    cover_url=None,
+    hook_style=None,
+    ending_style=None,
+    dialogue_style=None,
+    retention_strategy=None
+):
     return {
         "id": id_,
         "name": name,
@@ -92,81 +114,241 @@ def _builtin(id_, name, icon, description, prompt,
         "script_style": script_style,
         "footage_keywords": footage_keywords,
         "pace": pace,
+        "hook_style": hook_style,
+        "ending_style": ending_style,
+        "dialogue_style": dialogue_style,
+        "retention_strategy": retention_strategy
     }
 
 
 BUILTIN_TEMPLATES = [
-    _builtin("viral-facts", "Viral Facts", "⚡",
-             "Fast-paced fact videos with strong hooks.",
-             "Amazing facts about",
-             "Open with a shocking hook in the first sentence. Use short, "
-             "punchy sentences, one surprising fact per beat, and end with a "
-             "question or cliffhanger that makes viewers want more.",
-             "dramatic, close-up, fast motion",
-             "fast",
-             "solo",
-             accent="#f5b942"),
-    _builtin("amazing-places", "Amazing Places", "🌍",
-             "Create engaging destination and travel videos.",
-             "Amazing places in",
-             "Write like a travel guide painting a scene: sensory detail, "
-             "sense of wonder, one standout place or fact per beat.",
-             "aerial, landscape, travel, scenic",
-             "normal",
-             accent="#31c48d"),
-    _builtin("did-you-know", "Did You Know?", "🧠",
-             "Educational short-form videos built around surprising facts.",
-             "Did you know facts about",
-             "Start with 'Did you know' style curiosity. Explain each fact "
-             "simply and clearly, with a brief reason it is true.",
-             "science, documentary, close-up",
-             "normal",
-             accent="#5cc8ff"),
-    _builtin("storytelling", "Storytelling", "📖",
-             "Build short narratives with a strong opening and conclusion.",
-             "A fascinating short story about",
-             "Tell it as a story with a clear beginning, tension, and a "
-             "satisfying ending. Use vivid, emotional language.",
-             "cinematic, moody, people, slow motion",
-             "slow",
-             accent="#c77dff"),
-    _builtin("motivation", "Motivation", "💡",
-             "Short motivational and inspirational content.",
-             "An inspiring story about",
-             "Speak directly to the viewer in an uplifting, confident tone. "
-             "Build momentum and finish with one memorable takeaway.",
-             "sunrise, running, mountains, determination",
-             "normal",
-             accent="#ff8a5c"),
-    _builtin("top-5-list", "Top 5 List", "🎯",
-             "Create countdown-style videos and ranked lists.",
-             "Top 5 facts about",
-             "Structure as a countdown from number 5 to number 1, announcing "
-             "each number, with the most impressive item saved for last.",
-             "variety, bold, dynamic",
-             "fast",
-             accent="#ef5b6b"),
-    _builtin("podcast-style", "Podcast Style", "🎙️",
-             "A Host and a Guest talk through your topic like a short podcast clip.",
-             "A podcast conversation about",
-             "Write as a relaxed two-person podcast. The HOST opens with a "
-             "hook and asks questions; the GUEST answers with surprising "
-             "details. Keep turns short, natural and conversational.",
-             "podcast, studio, microphone, conversation, city",
-             "normal",
-             "dialogue",
-             accent="#7c5cff"),
-    _builtin("news-reporter", "News Reporter", "📰",
-             "An anchor and a correspondent break down the story.",
-             "Breaking news report on",
-             "Write as a news broadcast. The HOST is the anchor introducing "
-             "the story and asking follow-ups; the GUEST is the "
-             "correspondent reporting clear, factual details. Keep a "
-             "confident, professional tone.",
-             "news, city, crowd, newsroom, headlines",
-             "fast",
-             "dialogue",
-             accent="#4f8cff"),
+    
+    _builtin(
+        "amazing-places",
+        "Amazing Places",
+        "🌍",
+        "Cinematic destination videos that reveal breathtaking places, "
+        "remarkable natural wonders, fascinating cultures, and unforgettable "
+        "travel experiences.",
+        "Amazing places in",
+        "Write like an exceptional travel documentary narrator. Open with a "
+        "vivid image, surprising destination detail, or compelling reason to "
+        "explore the place. Build the narration around specific sights, "
+        "landmarks, landscapes, local traditions, or verified facts. Use "
+        "sensory language sparingly but effectively, helping viewers imagine "
+        "the scenery, atmosphere, sounds, and scale. Give each beat one "
+        "clear visual focus and connect the scenes naturally. Distinguish "
+        "verified facts from subjective descriptions. Do not invent "
+        "locations, attractions, cultural practices, prices, or travel "
+        "conditions. End with a memorable image, meaningful observation, "
+        "or a final verified detail that rewards the viewer's curiosity. "
+        "Avoid generic travel slogans and forced calls to action.",
+        "aerial, sweeping landscape, cinematic travel documentary, "
+        "natural wonders, architecture, local culture, scenic vistas, "
+        "golden hour, immersive establishing shots",
+        "normal",
+        hook_style="descriptive",
+        ending_style="memorable",
+        dialogue_style="curiosity_loop",
+        retention_strategy="high",
+        accent="#31c48d"
+    ),
+
+    _builtin(
+        "did-you-know",
+        "Did You Know?",
+        "🧠",
+        "Fast, fascinating educational videos that explain surprising facts "
+        "and make complex ideas easy to understand.",
+        "Did you know facts about",
+        "Start with a concise 'Did you know?' hook or an equally compelling "
+        "question about the topic. Present accurate, genuinely interesting "
+        "facts in a logical sequence. Explain why each fact is true using "
+        "simple language, a useful comparison, or a short example. Keep "
+        "scientific and technical explanations accessible without making "
+        "them misleading. Prioritize a few well-explained facts over a long "
+        "list of shallow claims. Use reliable, verifiable information and "
+        "never invent statistics, quotations, studies, or scientific "
+        "explanations. Build curiosity between beats, but resolve the main "
+        "question before the video ends. Finish with the most useful "
+        "takeaway or a surprising implication supported by the facts.",
+        "science documentary, macro close-ups, laboratory details, "
+        "nature footage, space imagery, educational animation, "
+        "scientific visualization, clean explanatory shots",
+        "normal",
+        hook_style="intriguing",
+        ending_style="memorable",
+        dialogue_style="curiosity_loop",
+        retention_strategy="high",
+        accent="#5cc8ff"
+    ),
+
+    _builtin(
+        "storytelling",
+        "Storytelling",
+        "📖",
+        "Immersive short stories with compelling openings, rising tension, "
+        "meaningful turning points, and satisfying conclusions.",
+        "A fascinating short story about",
+        "Tell a coherent story with a clear beginning, middle, and end. "
+        "Open with an intriguing situation, an unusual event, or a "
+        "character facing a meaningful challenge. Establish only the "
+        "details needed to understand the characters and their goals. "
+        "Build tension through obstacles, choices, discoveries, and "
+        "consequences rather than repetitive dramatic statements. Use "
+        "vivid but concise language, natural dialogue when appropriate, "
+        "and clear transitions between scenes. Make every beat advance "
+        "the plot or reveal character. Deliver a believable resolution, "
+        "a meaningful revelation, or an earned emotional conclusion. "
+        "For fictional stories, creativity is welcome; for stories "
+        "presented as true, do not fabricate real-world evidence or "
+        "present invented events as verified history. Avoid introducing "
+        "unresolved plot threads solely to force another view.",
+        "cinematic storytelling, expressive characters, atmospheric "
+        "locations, dramatic lighting, meaningful close-ups, "
+        "environmental details, visual symbolism, film stills",
+        "slow",
+        hook_style="descriptive",
+        ending_style="resolution",
+        dialogue_style="curiosity_loop",
+        retention_strategy="high",
+        accent="#c77dff"
+    ),
+
+    _builtin(
+        "motivation",
+        "Motivation",
+        "💡",
+        "Uplifting short videos that turn inspiring ideas, practical lessons, "
+        "and personal growth stories into actionable takeaways.",
+        "An inspiring story about",
+        "Speak directly to the viewer in a confident, encouraging, "
+        "grounded tone. Open with a relatable challenge, an insightful "
+        "observation, or a concise statement that earns attention. Build "
+        "momentum through a realistic example, a useful lesson, or a "
+        "credible story of persistence and growth. Use strong, natural "
+        "language without exaggeration, shame, or empty promises. Make "
+        "the message specific enough to be useful rather than relying "
+        "on generic slogans. Distinguish real people and events from "
+        "fictional illustrations. End with one memorable takeaway and "
+        "a practical action the viewer can realistically take. Use a "
+        "call to action only when it fits naturally; never promise that "
+        "success is guaranteed.",
+        "sunrise, mountain landscapes, focused work, training montage, "
+        "everyday perseverance, progress over time, determined expressions, "
+        "hopeful cinematic lighting, meaningful visual transitions",
+        "normal",
+        hook_style="inspirational",
+        ending_style="call_to_action",
+        dialogue_style="curiosity_loop",
+        retention_strategy="high",
+        accent="#ff8a5c"
+    ),
+
+    _builtin(
+        "top-5-list",
+        "Top 5 List",
+        "🎯",
+        "Punchy countdown videos featuring five interesting, useful, "
+        "surprising, or carefully ranked entries on a topic.",
+        "Top 5 facts about",
+        "Structure the video as a clear countdown from number five "
+        "to number one. Announce each number explicitly and give every "
+        "entry a concise explanation of why it belongs on the list. "
+        "Use consistent criteria when ranking items and explain the "
+        "basis of a ranking when it is subjective or debatable. Build "
+        "anticipation through meaningful contrasts and progressively "
+        "interesting reveals, while keeping every entry informative. "
+        "Ensure all five entries are distinct, relevant to the requested "
+        "topic, and factually defensible. Do not invent rankings, "
+        "statistics, prices, records, or superlatives. Save the strongest "
+        "entry for number one when the topic supports that choice. "
+        "Finish with a short conclusion that reinforces the most "
+        "interesting takeaway. Do not introduce a sixth item in the "
+        "closing or delay the answer with an unrelated cliffhanger.",
+        "dynamic countdown graphics, bold numbers, varied establishing "
+        "shots, comparison visuals, close-up details, fast visual cuts, "
+        "clean transitions, striking subject imagery",
+        "fast",
+        hook_style="shocking",
+        ending_style="memorable",
+        dialogue_style="curiosity_loop",
+        retention_strategy="high",
+        accent="#ef5b6b"
+    ),
+
+    _builtin(
+        "podcast-style",
+        "Podcast Style",
+        "🎙️",
+        "Natural two-person podcast clips with engaging questions, "
+        "thoughtful answers, useful insights, and authentic conversation.",
+        "A podcast conversation about",
+        "Write a natural, concise conversation between a HOST and a GUEST. "
+        "The HOST opens with a relevant hook, introduces the topic, and "
+        "asks focused questions. The GUEST answers directly, adding "
+        "useful explanations, examples, or surprising but supportable "
+        "insights. Give both speakers distinct conversational roles "
+        "without exaggerated personalities or artificial disagreement. "
+        "Keep turns brief enough for short-form video, but allow an "
+        "answer to finish before changing topics. Use follow-up questions "
+        "that respond to what was actually said rather than repeating "
+        "the same question in different words. Maintain a relaxed, "
+        "respectful rhythm and avoid making the conversation sound "
+        "like two alternating monologues. Do not invent personal "
+        "experiences or attribute unsupported claims to real people. "
+        "Close with the GUEST's final insight when useful, followed "
+        "by a natural HOST summary or thank-you. Avoid abrupt endings, "
+        "repetitive greetings, and forced promotional requests.",
+        "podcast studio, two microphones, host and guest, natural "
+        "conversation, studio close-ups, attentive listening, "
+        "subtle camera changes, professional recording environment",
+        "normal",
+        "dialogue",
+        hook_style="podcast",
+        ending_style="discussion",
+        dialogue_style="curiosity_loop",
+        retention_strategy="high",
+        accent="#7c5cff"
+    ),
+
+    _builtin(
+        "news-reporter",
+        "News Reporter",
+        "📰",
+        "Professional anchor-and-correspondent news videos with clear "
+        "story structure, factual reporting, and broadcast-style delivery.",
+        "Breaking news report on",
+        "Write a credible news broadcast with a HOST acting as the studio "
+        "anchor and a GUEST acting as the correspondent. The HOST opens "
+        "with a concise, newsworthy lead, identifies the central "
+        "development, and introduces the correspondent when appropriate. "
+        "The GUEST reports the confirmed details, relevant background, "
+        "known consequences, and important context in a clear, neutral "
+        "tone. Keep questions purposeful and answers direct. Distinguish "
+        "confirmed facts, official statements, allegations, estimates, "
+        "and unverified reports. Attribute claims to their sources when "
+        "known, acknowledge uncertainty, and never fabricate names, "
+        "quotes, dates, locations, statistics, sources, or news outlets. "
+        "Do not call a story breaking unless the information warrants it. "
+        "Conclude with the latest confirmed development or the next "
+        "known step. Use a professional correspondent sign-off or a "
+        "studio handoff only when appropriate. For standalone short-form "
+        "news, finish with a complete factual closing sentence. Do not "
+        "withhold essential information to create suspense, insert "
+        "personal opinions, or add an unrelated engagement request.",
+        "newsroom, professional broadcast studio, city establishing "
+        "shots, relevant event footage, public press conferences, "
+        "reporter on location, news graphics, documentary-style b-roll",
+        "fast",
+        "dialogue",
+        hook_style="breaking_news",
+        ending_style="broadcast_sign_off",
+        dialogue_style="curiosity_loop",
+        retention_strategy="high",
+        accent="#4f8cff"
+    ),
+
 ]
 
 
@@ -247,6 +429,14 @@ def _clean_template(raw, index):
     pace = _text(raw.get("pace"), 10).lower()
     pace = pace if pace in ALLOWED_PACES else None
 
+    "hook_style"= _text(raw.get("hook_style"), 40),
+
+    "ending_style"= _text(raw.get("ending_style"), 40),
+
+    "dialogue_style"= _text(raw.get("dialogue_style"), 40),
+
+    "retention_strategy"= _text(raw.get("retention_strategy"), 60),
+
     narration_mode = _text(raw.get("narration_mode"), 10).lower()
     narration_mode = narration_mode if narration_mode in ALLOWED_NARRATION_MODES else None
 
@@ -271,6 +461,10 @@ def _clean_template(raw, index):
         "script_style": _text(raw.get("script_style"), 400),
         "footage_keywords": _text(raw.get("footage_keywords"), 120),
         "pace": pace,
+        "hook_style": _text(raw.get("hook_style"), 100),
+        "ending_style": _text(raw.get("ending_style"), 100),
+        "dialogue_style": _text(raw.get("dialogue_style"), 100),
+        "retention_strategy": _text(raw.get("retention_strategy"), 100),
         "_order": order,
     }
 

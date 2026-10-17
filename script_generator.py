@@ -506,6 +506,27 @@ PACE_GUIDANCE = {
             "to breathe (still one sentence per line).",
 }
 
+ENDING_GUIDANCE = {
+    "curiosity_loop":
+        "End with an intriguing unresolved question or surprising fact.",
+
+    "resolution":
+        "End with a satisfying conclusion.",
+
+    "call_to_action":
+        "End with an inspirational takeaway.",
+
+    "discussion":
+        "End naturally as if continuing a conversation.",
+
+    "broadcast_sign_off":
+        "End with a natural sign-off, as if the video is a broadcast.",
+
+    "memorable":
+        "End with a memorable final line that leaves an impression."
+
+}
+
 
 def _template_block(template, with_visuals):
     """Extra prompt text built from a template's private style fields.
@@ -531,6 +552,21 @@ def _template_block(template, with_visuals):
             f"- Footage themes to favour when they fit the line: {keywords}. "
             "Every visual must still match what its line is about."
         )
+    hook_style = str( template.get("hook_style") or "").strip()
+    if hook_style:
+        lines.append(f"- Opening hook style: {hook_style}")
+
+    ending_style = str(template.get("ending_style") or "").strip()
+    if ending_style:
+        lines.append( f"- Ending style: {ending_style}")
+
+    dialogue_style = str(template.get("dialogue_style") or "").strip()
+    if dialogue_style:
+        lines.append(f"- Dialogue style: {dialogue_style}")
+
+    retention_strategy = str(template.get("retention_strategy") or "").strip()
+    if retention_strategy:
+        lines.append(f"- Retention strategy: {retention_strategy}")
 
     if not lines:
         return ""
