@@ -589,60 +589,230 @@ async def forgot_password(request: Request, body: ForgotPasswordRequest):
     return generic
 
 
-RESET_PAGE = """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Reset password</title></head>
-<body style='font-family:Arial,sans-serif;background:#f5f6fb;padding:40px;color:#172033'>
-  <main style='max-width:420px;margin:8vh auto;background:purple-light;padding:32px;border-radius:16px'>
-    <h2>Choose a new password</h2>
-    <p>Enter a new password for your Clip Pirate account.</p>
-    <input id='pw' type='password' placeholder='New password (min 8 characters)' minlength='8'
-           style='width:100%;padding:12px;margin:8px 0;border:1px solid #ccd;border-radius:8px;box-sizing:border-box'>
-    <input id='pw2' type='password' placeholder='Confirm new password' minlength='8'
-           style='width:100%;padding:12px;margin:8px 0 10px;border:1px solid #ccd;border-radius:8px;box-sizing:border-box'>
-    <label style='display:block;margin:0 0 16px;font-size:14px;cursor:pointer'>
-      <input id='show' type='checkbox'> Show passwords
-    </label>
-    <button id='go' ...
-    <button id='go' style='padding:12px 18px;background:#6d5dfc;color:white;border:0;border-radius:8px;cursor:pointer'>Reset password</button>
-    <p id='result' role='status'></p>
-    <a id='continue' href='/app' hidden>Continue to Clip Pirate</a>
+RESET_PAGE = """<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Reset password · ClipPirate.ai</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #0b0d12; --panel: #11141b; --panel-2: #171a22; --border: #292e39;
+    --text: #f5f7fb; --muted: #9299a8; --primary: #7c5cff; --primary-hover: #6847f5;
+    --success: #31c48d; --danger: #ef5b6b; --warning: #f5b942;
+  }
+  body {
+    font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    background:
+      radial-gradient(circle at top left, rgba(124,92,255,.20), transparent 38%),
+      radial-gradient(circle at bottom right, rgba(49,196,141,.08), transparent 32%),
+      var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex; align-items: center; justify-content: center;
+    padding: 24px;
+  }
+  .card {
+    width: 100%; max-width: 440px;
+    background: var(--panel); border: 1px solid var(--border);
+    border-radius: 20px; padding: 36px 32px;
+    box-shadow: 0 30px 80px rgba(0,0,0,.4);
+  }
+  .logo { font-size: 24px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 26px; }
+  .logo span { color: var(--primary); }
+  h1 { font-size: 24px; letter-spacing: -.5px; margin-bottom: 8px; }
+  .sub { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 26px; }
+  label.field { display: block; font-size: 13px; color: #dce0e8; margin-bottom: 8px; }
+  .input-wrap { position: relative; margin-bottom: 18px; }
+  .input-wrap input {
+    width: 100%; background: #0b0d12; color: var(--text);
+    border: 1px solid var(--border); border-radius: 10px;
+    padding: 13px 64px 13px 14px; font: inherit; outline: none;
+    transition: border-color .2s, box-shadow .2s;
+  }
+  .input-wrap input:focus {
+    border-color: var(--primary); box-shadow: 0 0 0 3px rgba(124,92,255,.18);
+  }
+  .input-wrap input.invalid { border-color: var(--danger); }
+  .toggle {
+    position: absolute; right: 8px; top: 50%; transform: translateY(-50%);
+    border: 0; background: transparent; color: var(--muted);
+    font: inherit; font-size: 12px; padding: 6px 9px; border-radius: 6px; cursor: pointer;
+  }
+  .toggle:hover { color: #fff; background: var(--panel-2); }
+  .meter { height: 5px; background: var(--panel-2); border-radius: 99px; overflow: hidden; margin: -6px 0 6px; }
+  .meter-fill { height: 100%; width: 0; border-radius: 99px; transition: width .25s, background .25s; }
+  .meter-text { font-size: 12px; color: var(--muted); min-height: 18px; margin-bottom: 14px; }
+  .btn {
+    width: 100%; border: 0; border-radius: 10px; padding: 14px 18px;
+    background: var(--primary); color: #fff; font: inherit; font-weight: 700;
+    cursor: pointer; transition: background .2s, opacity .2s;
+    display: block; text-align: center; text-decoration: none;
+  }
+  .btn:hover { background: var(--primary-hover); }
+  .btn:disabled { opacity: .6; cursor: not-allowed; }
+  .msg {
+    display: none; margin-top: 16px; padding: 12px 14px;
+    border-radius: 10px; font-size: 14px; line-height: 1.5;
+  }
+  .msg.show { display: block; }
+  .msg.error { background: rgba(239,91,107,.10); color: #ff8995; border: 1px solid rgba(239,91,107,.22); }
+  .msg.ok { background: rgba(49,196,141,.10); color: #6ce0b1; border: 1px solid rgba(49,196,141,.22); }
+  .done { display: none; text-align: center; }
+  .done.show { display: block; }
+  .check {
+    width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 18px;
+    background: rgba(49,196,141,.14); color: var(--success);
+    display: flex; align-items: center; justify-content: center; font-size: 28px;
+  }
+  .done .sub { margin-bottom: 22px; }
+  .foot { text-align: center; margin-top: 22px; font-size: 13px; }
+  .foot a { color: var(--muted); }
+  .foot a:hover { color: #fff; }
+  @media (max-width: 480px) { .card { padding: 28px 22px; border-radius: 16px; } }
+</style>
+</head>
+<body>
+  <main class="card">
+    <div class="logo">Clip<span>Pirate</span>.ai</div>
+
+    <section id="formView">
+      <h1>Choose a new password</h1>
+      <p class="sub">Pick something strong that you don't use anywhere else.
+        You'll be signed out of all your devices once it's changed.</p>
+
+      <label class="field" for="pw">New password</label>
+      <div class="input-wrap">
+        <input id="pw" type="password" autocomplete="new-password"
+               placeholder="At least 8 characters" minlength="8">
+        <button type="button" class="toggle" data-target="pw" aria-label="Show password">Show</button>
+      </div>
+
+      <div class="meter"><div class="meter-fill" id="meterFill"></div></div>
+      <div class="meter-text" id="meterText"></div>
+
+      <label class="field" for="pw2">Confirm new password</label>
+      <div class="input-wrap">
+        <input id="pw2" type="password" autocomplete="new-password"
+               placeholder="Type it again">
+        <button type="button" class="toggle" data-target="pw2" aria-label="Show password">Show</button>
+      </div>
+
+      <button id="go" class="btn" type="button">Reset password</button>
+      <div id="msg" class="msg" role="status"></div>
+
+      <p class="foot"><a href="/app">Back to login</a></p>
+    </section>
+
+    <section id="doneView" class="done">
+      <div class="check">&#10003;</div>
+      <h1>Password updated</h1>
+      <p class="sub">Your password has been changed. Log in with your new password to continue.</p>
+      <a class="btn" href="/app">Continue to ClipPirate</a>
+    </section>
   </main>
+
   <script>
     const token = __TOKEN__;
-    const btn = document.getElementById('go');
-    const result = document.getElementById('result');
-    document.getElementById('show').addEventListener('change', (e) => {
-      const type = e.target.checked ? 'text' : 'password';
-      document.getElementById('pw').type = type;
-      document.getElementById('pw2').type = type;
+    const $ = (id) => document.getElementById(id);
+    const pw = $('pw'), pw2 = $('pw2'), go = $('go'), msg = $('msg');
+
+    function showMsg(text, kind) {
+      msg.textContent = text;
+      msg.className = 'msg show ' + kind;
+    }
+    function clearMsg() { msg.className = 'msg'; msg.textContent = ''; }
+
+    document.querySelectorAll('.toggle').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const input = $(btn.dataset.target);
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        btn.textContent = show ? 'Hide' : 'Show';
+        btn.setAttribute('aria-label', show ? 'Hide password' : 'Show password');
+      });
     });
-    btn.addEventListener('click', async () => {
-      const pw = document.getElementById('pw').value;
-      const pw2 = document.getElementById('pw2').value;
-      if (pw.length < 8) { result.textContent = 'Use at least 8 characters.'; return; }
-      if (pw !== pw2) { result.textContent = 'The two passwords do not match.'; return; }
-      btn.disabled = true; result.textContent = 'Saving...';
+
+    function strength(value) {
+      let score = 0;
+      if (value.length >= 8) score++;
+      if (value.length >= 12) score++;
+      if (/[a-z]/.test(value) && /[A-Z]/.test(value)) score++;
+      if (/\\d/.test(value)) score++;
+      if (/[^A-Za-z0-9]/.test(value)) score++;
+      return score;
+    }
+
+    pw.addEventListener('input', () => {
+      const value = pw.value;
+      const fill = $('meterFill'), text = $('meterText');
+      pw.classList.remove('invalid');
+      clearMsg();
+      if (!value) { fill.style.width = '0'; text.textContent = ''; return; }
+      const s = strength(value);
+      const levels = [
+        ['20%', '#ef5b6b', 'Too weak'],
+        ['20%', '#ef5b6b', 'Too weak'],
+        ['45%', '#f5b942', 'Fair'],
+        ['70%', '#f5b942', 'Good'],
+        ['100%', '#31c48d', 'Strong'],
+        ['100%', '#31c48d', 'Very strong']
+      ];
+      const [width, color, label] = levels[s];
+      fill.style.width = width;
+      fill.style.background = color;
+      text.textContent = label;
+    });
+
+    pw2.addEventListener('input', () => { pw2.classList.remove('invalid'); clearMsg(); });
+
+    async function submit() {
+      clearMsg();
+      if (pw.value.length < 8) {
+        pw.classList.add('invalid');
+        showMsg('Use at least 8 characters.', 'error');
+        return;
+      }
+      if (pw.value !== pw2.value) {
+        pw2.classList.add('invalid');
+        showMsg('The two passwords do not match.', 'error');
+        return;
+      }
+      go.disabled = true;
+      go.textContent = 'Saving...';
       try {
         const response = await fetch('/auth/reset-password', {
           method: 'POST',
           headers: {'Content-Type': 'application/json'},
-          body: JSON.stringify({token, password: pw})
+          body: JSON.stringify({token: token, password: pw.value})
         });
-        const data = await response.json();
-        const detail = data.detail;
-        result.textContent = data.message ||
-          (detail && detail.message) ||
-          (response.ok ? 'Password updated.' : 'This link is invalid or expired.');
+        const data = await response.json().catch(() => ({}));
         if (response.ok) {
-          document.getElementById('continue').hidden = false;
-          btn.hidden = true;
-        } else { btn.disabled = false; }
-      } catch (_) {
-        result.textContent = 'Could not reset right now. Please try again.';
-        btn.disabled = false;
+          $('formView').style.display = 'none';
+          $('doneView').classList.add('show');
+          return;
+        }
+        const detail = data.detail;
+        let text = 'This reset link is invalid or expired. Request a new one from the login page.';
+        if (detail && typeof detail === 'object' && detail.message) text = detail.message;
+        else if (typeof detail === 'string') text = detail;
+        else if (Array.isArray(detail)) text = 'Please check your password and try again.';
+        showMsg(text, 'error');
+      } catch (err) {
+        showMsg('Could not reach the server. Check your connection and try again.', 'error');
       }
-    });
+      go.disabled = false;
+      go.textContent = 'Reset password';
+    }
+
+    go.addEventListener('click', submit);
+    [pw, pw2].forEach((el) => el.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') submit();
+    }));
   </script>
-</body></html>"""
+</body>
+</html>"""
 
 
 @app.get("/auth/reset-password", response_class=HTMLResponse)
