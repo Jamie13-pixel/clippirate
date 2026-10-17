@@ -59,6 +59,8 @@ from db import (
     create_user,
     get_user_by_email,
     get_user,
+    store_password_reset_token,
+    reset_password_with_token,
     list_expired_videos,
     store_email_verification_token,
     _conn,
@@ -137,6 +139,7 @@ PAYSTACK_IS_LIVE = bool(PAYSTACK_SECRET_KEY and PAYSTACK_SECRET_KEY.startswith("
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 APP_BASE_URL = os.getenv("APP_BASE_URL", "https://clippirate.onrender.com").rstrip("/")
 EMAIL_VERIFICATION_MINUTES = int(os.getenv("EMAIL_VERIFICATION_MINUTES", "30"))
+PASSWORD_RESET_MINUTES = int(os.getenv("PASSWORD_RESET_MINUTES", "30"))
 VIDEO_RETENTION_DAYS_FREE = int(os.getenv("VIDEO_RETENTION_DAYS_FREE", "7"))
 VIDEO_RETENTION_DAYS_PAID = int(os.getenv("VIDEO_RETENTION_DAYS_PAID", "30"))
 MIN_FREE_DISK_MB = int(os.getenv("MIN_FREE_DISK_MB", "150"))
@@ -233,6 +236,14 @@ class ResendVerificationRequest(BaseModel):
 
 class VerifyEmailRequest(BaseModel):
     token: str = Field(min_length=20, max_length=200)
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=200)
+    password: str = Field(min_length=8, max_length=128)
 
 
 class VideoRequest(BaseModel):
@@ -501,6 +512,150 @@ def verify_email(payload: VerifyEmailRequest):
     if not verify_email_token(payload.token):
         raise HTTPException(status_code=400, detail={"code": "invalid_verification_token", "message": "This verification link is invalid or expired."})
     return {"ok": True, "message": "Email verified successfully. You can now log in."}
+
+async def send_password_reset_email(email: str, raw_token: str) -> None:
+    reset_url = (
+        f"{APP_BASE_URL}/auth/reset-password?"
+        f"token={quote(raw_token, safe='')}"
+    )
+    subject = f"Reset your {APP_NAME} password"
+    text_content = (
+        f"Someone asked to reset the password for your {APP_NAME} account.\n\n"
+        f"Open this link within {PASSWORD_RESET_MINUTES} minutes to choose a new password:\n"
+        f"{reset_url}\n\n"
+        "If you did not request this, you can ignore this email. "
+        "Your password will not change."
+    )
+    html_content = f"""
+    <!doctype html>
+    <html>
+      <body style="font-family:Arial,sans-serif;color:#172033">
+        <h2>Reset your password</h2>
+        <p>Someone asked to reset the password for your {APP_NAME} account.</p>
+        <p>
+          <a href="{reset_url}"
+             style="display:inline-block;padding:12px 18px;
+                    background:#6d5dfc;color:#fff;
+                    text-decoration:none;border-radius:8px">
+            Choose a new password
+          </a>
+        </p>
+        <p>
+          This link expires in {PASSWORD_RESET_MINUTES} minutes.
+          If you did not request this, ignore this email. Your password will not change.
+        </p>
+      </body>
+    </html>
+    """
+    await send_email(
+        recipient_email=email,
+        subject=subject,
+        html_content=html_content,
+        text_content=text_content,
+    )
+
+
+async def create_and_send_password_reset(user_id: str, email: str) -> None:
+    try:
+        raw_token = secrets.token_urlsafe(32)
+        expires_at = (
+            datetime.now(timezone.utc)
+            + timedelta(minutes=PASSWORD_RESET_MINUTES)
+        ).isoformat()
+        store_password_reset_token(user_id, raw_token, expires_at)
+        await send_password_reset_email(email, raw_token)
+    except Exception as exc:
+        print(f"[EMAIL] Password reset send failed: {type(exc).__name__}: {exc}", flush=True)
+
+
+@app.post("/auth/forgot-password")
+@limiter.limit("3/hour")
+async def forgot_password(request: Request, body: ForgotPasswordRequest):
+    # Same answer whether or not the account exists, so this cannot be used
+    # to find out which emails are registered.
+    generic = {
+        "ok": True,
+        "message": "If an account exists for that email, a password reset link is on its way.",
+    }
+    user = get_user_by_email(body.email)
+    if user:
+        # Sent in the background so response time doesn't reveal whether
+        # the account exists.
+        task = asyncio.create_task(
+            create_and_send_password_reset(user["id"], str(body.email).strip().lower())
+        )
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
+    return generic
+
+
+RESET_PAGE = """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Reset password</title></head>
+<body style='font-family:Arial,sans-serif;background:#f5f6fb;padding:40px;color:#172033'>
+  <main style='max-width:420px;margin:8vh auto;background:white;padding:32px;border-radius:16px'>
+    <h2>Choose a new password</h2>
+    <p>Enter a new password for your Clip Pirate account.</p>
+    <input id='pw' type='password' placeholder='New password (min 8 characters)' minlength='8'
+           style='width:100%;padding:12px;margin:8px 0;border:1px solid #ccd;border-radius:8px;box-sizing:border-box'>
+    <input id='pw2' type='password' placeholder='Confirm new password' minlength='8'
+           style='width:100%;padding:12px;margin:8px 0 16px;border:1px solid #ccd;border-radius:8px;box-sizing:border-box'>
+    <button id='go' style='padding:12px 18px;background:#6d5dfc;color:white;border:0;border-radius:8px;cursor:pointer'>Reset password</button>
+    <p id='result' role='status'></p>
+    <a id='continue' href='/app' hidden>Continue to Clip Pirate</a>
+  </main>
+  <script>
+    const token = __TOKEN__;
+    const btn = document.getElementById('go');
+    const result = document.getElementById('result');
+    btn.addEventListener('click', async () => {
+      const pw = document.getElementById('pw').value;
+      const pw2 = document.getElementById('pw2').value;
+      if (pw.length < 8) { result.textContent = 'Use at least 8 characters.'; return; }
+      if (pw !== pw2) { result.textContent = 'The two passwords do not match.'; return; }
+      btn.disabled = true; result.textContent = 'Saving...';
+      try {
+        const response = await fetch('/auth/reset-password', {
+          method: 'POST',
+          headers: {'Content-Type': 'application/json'},
+          body: JSON.stringify({token, password: pw})
+        });
+        const data = await response.json();
+        const detail = data.detail;
+        result.textContent = data.message ||
+          (detail && detail.message) ||
+          (response.ok ? 'Password updated.' : 'This link is invalid or expired.');
+        if (response.ok) {
+          document.getElementById('continue').hidden = false;
+          btn.hidden = true;
+        } else { btn.disabled = false; }
+      } catch (_) {
+        result.textContent = 'Could not reset right now. Please try again.';
+        btn.disabled = false;
+      }
+    });
+  </script>
+</body></html>"""
+
+
+@app.get("/auth/reset-password", response_class=HTMLResponse)
+def reset_password_page(token: str = Query(default="", max_length=200)):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,200}", token or ""):
+        return HTMLResponse(
+            "<!doctype html><html><body style='font-family:Arial,sans-serif;padding:40px'>"
+            "<h2>Reset link invalid</h2><p>Request a new password reset from the Clip Pirate login page.</p>"
+            "<a href='/app'>Return to Clip Pirate</a></body></html>",
+            status_code=400,
+        )
+    return HTMLResponse(RESET_PAGE.replace("__TOKEN__", json.dumps(token)))
+
+
+@app.post("/auth/reset-password")
+@limiter.limit("10/hour")
+def reset_password(request: Request, payload: ResetPasswordRequest):
+    if not re.fullmatch(r"[A-Za-z0-9_-]{20,200}", payload.token or ""):
+        raise HTTPException(status_code=400, detail={"code": "invalid_reset_token", "message": "This reset link is invalid or expired."})
+    if not reset_password_with_token(payload.token, payload.password):
+        raise HTTPException(status_code=400, detail={"code": "invalid_reset_token", "message": "This reset link is invalid or expired."})
+    return {"ok": True, "message": "Password updated. You can now log in with your new password."}
 
 
 @app.post("/auth/login")

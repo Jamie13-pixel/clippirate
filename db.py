@@ -258,6 +258,24 @@ def init_db():
             CREATE INDEX IF NOT EXISTS idx_email_verification_user
                 ON email_verification_tokens(user_id, created_at DESC);
 
+            CREATE TABLE IF NOT EXISTS password_reset_tokens (
+
+                token_hash TEXT PRIMARY KEY,
+
+                user_id TEXT NOT NULL
+                    REFERENCES users(id)
+                    ON DELETE CASCADE,
+
+                expires_at TEXT NOT NULL,
+
+                used_at TEXT,
+
+                created_at TEXT NOT NULL
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_password_reset_user
+                ON password_reset_tokens(user_id);
+
 
             CREATE TABLE IF NOT EXISTS sessions (
 
@@ -799,6 +817,56 @@ def verify_email_token(raw_token):
         )
         return True
 
+def store_password_reset_token(user_id, raw_token, expires_at):
+    """Store only a hash of a one-time reset token (one live token per user)."""
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    with _conn() as c:
+        c.execute(
+            "DELETE FROM password_reset_tokens WHERE user_id = ?",
+            (user_id,),
+        )
+        c.execute(
+            """
+            INSERT INTO password_reset_tokens(
+                token_hash, user_id, expires_at, used_at, created_at
+            ) VALUES (?, ?, ?, NULL, ?)
+            """,
+            (token_hash, user_id, expires_at, now_iso()),
+        )
+
+
+def reset_password_with_token(raw_token, new_password):
+    """Consume a valid token, set the new password, sign out every device."""
+    if not raw_token:
+        return False
+    token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+    now = now_iso()
+    with _conn() as c:
+        row = c.execute(
+            """
+            SELECT user_id FROM password_reset_tokens
+            WHERE token_hash = ? AND used_at IS NULL AND expires_at > ?
+            """,
+            (token_hash, now),
+        ).fetchone()
+        if not row:
+            return False
+        claimed = c.execute(
+            """
+            UPDATE password_reset_tokens SET used_at = ?
+            WHERE token_hash = ? AND used_at IS NULL
+            """,
+            (now, token_hash),
+        )
+        if claimed.rowcount != 1:
+            return False
+        c.execute(
+            "UPDATE users SET password_hash = ?, email_verified = 1 WHERE id = ?",
+            (_hash_password(new_password), row["user_id"]),
+        )
+        c.execute("DELETE FROM sessions WHERE user_id = ?", (row["user_id"],))
+        c.execute("DELETE FROM password_reset_tokens WHERE user_id = ?", (row["user_id"],))
+        return True
 
 def is_email_verified(user):
     """Handle SQLite rows and dictionaries consistently."""
@@ -2164,7 +2232,7 @@ def expire_project_video(
                 video_url,
             )
         )
-        
+
 def list_expired_videos(free_days, paid_days):
 
     """Projects whose stored video is older than their plan's retention."""

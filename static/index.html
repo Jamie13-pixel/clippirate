@@ -1130,6 +1130,12 @@
                     <input id="loginPassword" type="password" placeholder="Your password" required>
                 </div>
                 <button class="primary-btn" type="submit" id="loginButton">Login</button>
+                <button class="primary-btn" type="submit" id="loginButton">Login</button>
+
+                <p style="text-align:center;margin-top:14px;">
+                    <a href="#" onclick="showForgot(); return false;"
+                       style="color:var(--muted);font-size:13px;">Forgot password?</a>
+                </p>
             </form>
 
             <!-- SIGNUP -->
@@ -1147,6 +1153,19 @@
                     <input id="signupPassword" type="password" placeholder="At least 8 characters" minlength="8" required>
                 </div>
                 <button class="primary-btn" type="submit" id="signupButton">Create Account</button>
+            </form>
+
+            <!-- FORGOT PASSWORD -->
+            <form id="forgotForm" class="hidden">
+    <div class="form-group">
+        <label>Email</label>
+        <input id="forgotEmail" type="email" placeholder="you@example.com" required>
+    </div>
+    <button class="primary-btn" type="submit" id="forgotButton">Send reset link</button>
+    <p style="text-align:center;margin-top:14px;">
+        <a href="#" onclick="showLogin(); return false;"
+           style="color:var(--muted);font-size:13px;">Back to login</a>
+    </p>
             </form>
 
         </div>
@@ -1994,6 +2013,7 @@
             "Sign in to continue to ClipPirate.";
         document.getElementById("resendVerificationContainer")
             .classList.add("hidden");
+        document.getElementById("forgotForm").classList.add("hidden");
 
         clearAuthMessage();
     }
@@ -2012,10 +2032,72 @@
             "Start creating videos with ClipPirate.";
         document.getElementById("resendVerificationContainer")
             .classList.add("hidden");
+        document.getElementById("forgotForm").classList.add("hidden");
 
         clearAuthMessage();
     }
+    
+    function showForgot() {
 
+    document.getElementById("loginForm").classList.add("hidden");
+    document.getElementById("signupForm").classList.add("hidden");
+    document.getElementById("forgotForm").classList.remove("hidden");
+
+    document.getElementById("authTitle").textContent = "Reset your password";
+    document.getElementById("authSubtitle").textContent =
+        "Enter your email and we'll send you a reset link.";
+    document.getElementById("resendVerificationContainer")
+        .classList.add("hidden");
+
+    // Carry over what they already typed on the login form.
+    document.getElementById("forgotEmail").value =
+        document.getElementById("loginEmail").value.trim();
+
+    clearAuthMessage();
+
+    }
+
+    document
+        .getElementById("forgotForm")
+        .addEventListener("submit", async function (event) {
+
+            event.preventDefault();
+
+            clearAuthMessage();
+
+            const button = document.getElementById("forgotButton");
+
+            button.disabled = true;
+            button.textContent = "Sending...";
+
+            try {
+
+                const email = document.getElementById("forgotEmail").value.trim();
+
+                const data = await api("/auth/forgot-password", {
+                    method: "POST",
+                    body: JSON.stringify({ email })
+                });
+
+                showAuthMessage(
+                    data.message ||
+                    "If an account exists for that email, a reset link is on its way.",
+                    "success"
+                );
+
+            } catch (error) {
+
+                showAuthMessage(
+                    error.message || "Could not send the reset link. Please try again.",
+                    "error"
+                );
+
+            } finally {
+
+                button.disabled = false;
+                button.textContent = "Send reset link";
+            }
+        });
 
     async function resendVerificationEmail() {
         const emailInput = document.getElementById("loginEmail");
