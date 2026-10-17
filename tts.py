@@ -226,7 +226,8 @@ async def _synthesize_line(text, voice, path):
                 flush=True,
             )
             await asyncio.sleep(delay)
-    _eleven_blocked_until = 0.0
+
+_eleven_blocked_until = 0.0
 
 
 def _eleven_available():
