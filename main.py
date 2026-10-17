@@ -597,7 +597,13 @@ RESET_PAGE = """<!doctype html><html><head><meta charset="utf-8"><meta name="vie
     <input id='pw' type='password' placeholder='New password (min 8 characters)' minlength='8'
            style='width:100%;padding:12px;margin:8px 0;border:1px solid #ccd;border-radius:8px;box-sizing:border-box'>
     <input id='pw2' type='password' placeholder='Confirm new password' minlength='8'
-           style='width:100%;padding:12px;margin:8px 0 16px;border:1px solid #ccd;border-radius:8px;box-sizing:border-box'>
+           style='width:100%;padding:12px;margin:8px 0 10px;border:1px solid #ccd;border-radius:8px;box-sizing:border-box'>
+    <input id='pw2' type='password' placeholder='Confirm new password' minlength='8'
+           style='width:100%;padding:12px;margin:8px 0 10px;border:1px solid #ccd;border-radius:8px;box-sizing:border-box'>
+    <label style='display:block;margin:0 0 16px;font-size:14px;cursor:pointer'>
+      <input id='show' type='checkbox'> Show passwords
+    </label>
+    <button id='go' ...
     <button id='go' style='padding:12px 18px;background:#6d5dfc;color:white;border:0;border-radius:8px;cursor:pointer'>Reset password</button>
     <p id='result' role='status'></p>
     <a id='continue' href='/app' hidden>Continue to Clip Pirate</a>
@@ -606,6 +612,11 @@ RESET_PAGE = """<!doctype html><html><head><meta charset="utf-8"><meta name="vie
     const token = __TOKEN__;
     const btn = document.getElementById('go');
     const result = document.getElementById('result');
+    document.getElementById('show').addEventListener('change', (e) => {
+      const type = e.target.checked ? 'text' : 'password';
+      document.getElementById('pw').type = type;
+      document.getElementById('pw2').type = type;
+    });
     btn.addEventListener('click', async () => {
       const pw = document.getElementById('pw').value;
       const pw2 = document.getElementById('pw2').value;

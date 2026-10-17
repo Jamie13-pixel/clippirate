@@ -355,6 +355,26 @@
             min-height: 100vh;
         }
 
+        .password-wrap { position: relative; }
+
+        .password-toggle {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            border: 0;
+            background: transparent;
+            color: var(--muted);
+            font-size: 12px;
+            padding: 6px 8px;
+            border-radius: 6px;
+        }
+
+        .password-toggle:hover {
+            color: white;
+            background: var(--panel-2);
+        }
+
         /* =========================
            SIDEBAR COLLAPSE TOGGLE
         ========================= */
@@ -2369,6 +2389,7 @@
         showLogin();
 
         document.getElementById("loginPassword").value = "";
+        document.getElementById("loginPassword").type = "password";
 
         showToast("You have been logged out.");
     }
@@ -4029,6 +4050,43 @@
         });
     }
 
+    function addPasswordToggles(root) {
+
+        root.querySelectorAll('input[type="password"]').forEach(input => {
+
+            if (input.dataset.toggled) return;
+            input.dataset.toggled = "1";
+
+            const wrap = document.createElement("div");
+            wrap.className = "password-wrap";
+
+            input.parentNode.insertBefore(wrap, input);
+            wrap.appendChild(input);
+
+            input.style.paddingRight = "64px";
+
+            const button = document.createElement("button");
+            button.type = "button";
+            button.className = "password-toggle";
+            button.textContent = "Show";
+            button.setAttribute("aria-label", "Show password");
+
+            button.addEventListener("click", function () {
+
+                const show = input.type === "password";
+
+                input.type = show ? "text" : "password";
+                button.textContent = show ? "Hide" : "Show";
+                button.setAttribute(
+                    "aria-label",
+                    show ? "Hide password" : "Show password"
+                );
+            });
+
+            wrap.appendChild(button);
+        });
+    }
+
 
     /* =====================================================
        START APPLICATION
@@ -4040,6 +4098,8 @@
 
         loadPreferences();
 
+        addPasswordToggles(document);   
+        
         await checkAuthentication();
 
         await handlePaystackReturn();
