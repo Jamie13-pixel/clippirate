@@ -81,6 +81,7 @@ from db import (
     create_project,
     update_project,
     list_projects,
+    recover_stale_jobs,
     public_user,
     DB_PATH,
 )
@@ -204,6 +205,7 @@ app.mount("/app", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 init_db()
 report_storage()
+print(f"[STARTUP] Recovered {recover_stale_jobs()} interrupted job(s).", flush=True)
 
 
 class SignupRequest(BaseModel):
@@ -515,17 +517,6 @@ def login(body: LoginRequest, response: Response):
         secure=COOKIE_SECURE, max_age=30 * 86400, path="/",
     )
     return {"user": public_user(get_user(user["id"]))}
-
-
-@app.post("/signup")
-def signup_alias(request: Request, body: SignupRequest, response: Response):
-    return signup(request, body, response)
-
-
-@app.post("/login")
-def login_alias(body: LoginRequest, response: Response):
-    return login(body, response)
-
 
 @app.post("/auth/logout")
 def logout(request: Request, response: Response):

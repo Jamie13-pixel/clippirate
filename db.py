@@ -5,6 +5,7 @@ import secrets
 import sqlite3
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from contextlib import contextmanager
 
 
 # ============================================================
@@ -102,6 +103,7 @@ PLAN_CONFIG = {
 # DATABASE CONNECTION
 # ============================================================
 
+@contextmanager
 def _conn():
 
     Path(DB_PATH).parent.mkdir(
@@ -110,17 +112,24 @@ def _conn():
     )
 
     conn = sqlite3.connect(
-        DB_PATH
+        DB_PATH,
+        timeout=30
     )
 
     conn.row_factory = sqlite3.Row
 
-    conn.execute(
-        "PRAGMA foreign_keys = ON"
-    )
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 30000")
 
-    return conn
-
+    try:
+        yield conn
+        conn.commit()
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 # ============================================================
 # TIME
@@ -447,15 +456,16 @@ def init_db():
                 "ALTER TABLE users ADD COLUMN "
                 "credits_reset_on TEXT",
         }
+        project_columns = {
+            row["name"]
+            for row in c.execute(
+                "PRAGMA table_info(projects)"
+            ).fetchall()
+        }
+        
 
         for column, sql in migrations.items():
-            project_columns = {
-                row["name"]
-                for row in c.execute(
-                    "PRAGMA table_info(projects)"
-                ).fetchall()
-            }
-
+           
             if "narration_mode" not in project_columns:
 
                 c.execute(
@@ -1485,7 +1495,7 @@ def create_payment(
                 payment_id,
                 user_id,
                 plan.lower(),
-                int(amount),
+                float(amount)
                 currency,
                 provider,
                 None,
@@ -2180,6 +2190,112 @@ def list_projects(
                 limit,
             )
         ).fetchall()
+
+# ============================================================
+# RECOVERY OF INTERRUPTED JOBS
+# ============================================================
+
+def recover_stale_jobs(max_age_minutes=5):
+
+    """
+    Fail jobs left 'pending' or 'processing' by a restart, and give the
+    user their credits and daily slot back. Each job is claimed with a
+    conditional UPDATE, so it can never be refunded twice.
+    """
+
+    cutoff = (
+        datetime.now(timezone.utc)
+        - timedelta(minutes=max_age_minutes)
+    ).isoformat()
+
+    today = today_iso()
+
+    message = (
+        "Generation was interrupted by a server restart. "
+        "Your credits were refunded. Please try again."
+    )
+
+    recovered = 0
+
+    with _conn() as c:
+
+        stale = c.execute(
+            """
+            SELECT
+                j.id AS job_id,
+                j.user_id,
+                j.project_id,
+                j.created_at,
+                p.credits_cost
+
+            FROM jobs j
+
+            JOIN projects p
+                ON p.id = j.project_id
+
+            WHERE
+                j.status IN ('pending', 'processing')
+                AND j.created_at < ?
+            """,
+            (cutoff,)
+        ).fetchall()
+
+        for row in stale:
+
+            claimed = c.execute(
+                """
+                UPDATE jobs
+
+                SET
+                    status = 'failed',
+                    error = ?,
+                    result = NULL
+
+                WHERE
+                    id = ?
+                    AND status IN ('pending', 'processing')
+                """,
+                (message, row["job_id"])
+            )
+
+            if claimed.rowcount != 1:
+                continue
+
+            c.execute(
+                "UPDATE projects SET status = 'failed', error = ? WHERE id = ?",
+                (message, row["project_id"])
+            )
+
+            c.execute(
+                """
+                UPDATE users
+                SET credits = MIN(monthly_limit, credits + ?)
+                WHERE id = ?
+                """,
+                (row["credits_cost"], row["user_id"])
+            )
+
+            # Only today's counter can be refunded; an older job's day is over.
+            if str(row["created_at"])[:10] == today:
+
+                c.execute(
+                    """
+                    UPDATE daily_generation_usage
+
+                    SET
+                        generation_count = MAX(generation_count - 1, 0),
+                        updated_at = ?
+
+                    WHERE
+                        user_id = ?
+                        AND usage_date = ?
+                    """,
+                    (now_iso(), row["user_id"], today)
+                )
+
+            recovered += 1
+
+    return recovered
 
 
 # ============================================================

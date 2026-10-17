@@ -2235,9 +2235,12 @@
                     body: JSON.stringify({ name, email, password })
                 });
 
-                currentUser = data.user;
+                showLogin();
 
-                enterApplication();
+                showAuthMessage(
+                    data.message || "Account created. Check your email to verify your account.",
+                    "success"
+                );
 
             } catch (error) {
 
