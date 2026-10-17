@@ -2318,6 +2318,32 @@ def list_projects(
             )
         ).fetchall()
 
+def user_owns_video(user_id, video_url):
+
+    """True only if this user has a project whose stored video is video_url."""
+
+    with _conn() as c:
+
+        row = c.execute(
+            """
+            SELECT 1
+
+            FROM projects
+
+            WHERE
+                user_id = ?
+                AND video_url = ?
+
+            LIMIT 1
+            """,
+            (
+                user_id,
+                video_url,
+            )
+        ).fetchone()
+
+    return row is not None
+
 # ============================================================
 # RECOVERY OF INTERRUPTED JOBS
 # ============================================================

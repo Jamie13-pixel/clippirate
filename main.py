@@ -91,6 +91,7 @@ from db import (
     list_projects,
     recover_stale_jobs,
     public_user,
+    user_owns_video,
     DB_PATH,
 )
 
@@ -191,27 +192,40 @@ os.makedirs(DATA_DIR / "videos", exist_ok=True)
 os.makedirs(DATA_DIR / "audio", exist_ok=True)
 os.makedirs(DATA_DIR / "temp_clips", exist_ok=True)
 
-app.mount("/videos", StaticFiles(directory=DATA_DIR / "videos"), name="videos")
+def _owned_video_path(request: Request, filename: str) -> Path:
+    user = current_user(request)
+    safe_name = Path(filename).name
+    if safe_name != filename or not safe_name.lower().endswith(".mp4"):
+        raise HTTPException(status_code=400, detail="Invalid filename.")
+    # Same 404 for "missing" and "belongs to someone else", so nobody
+    # can probe which filenames exist.
+    if not user_owns_video(user["id"], f"/videos/{safe_name}"):
+        raise HTTPException(status_code=404, detail="Video not found.")
+    path = DATA_DIR / "videos" / safe_name
+    if not path.is_file():
+        raise HTTPException(status_code=404, detail="Video not found.")
+    return path
+
+
+@app.get("/videos/{filename}")
+def stream_video(request: Request, filename: str):
+    path = _owned_video_path(request, filename)
+    return FileResponse(
+        path,
+        media_type="video/mp4",
+        headers={"Cache-Control": "private, max-age=3600"},
+    )
 
 
 @app.get("/download/{filename}")
 def download_video(request: Request, filename: str):
-    current_user(request)
-    safe_name = Path(filename).name
-    if safe_name != filename:
-        raise HTTPException(status_code=400, detail="Invalid filename.")
-    if not safe_name.lower().endswith(".mp4"):
-        raise HTTPException(status_code=400, detail="Only MP4 video files can be downloaded.")
-    video_path = DATA_DIR / "videos" / safe_name
-    if not video_path.is_file():
-        raise HTTPException(status_code=404, detail="Video not found.")
+    path = _owned_video_path(request, filename)
     return FileResponse(
-        video_path,
+        path,
         media_type="video/mp4",
-        filename=safe_name,
-        headers={"Content-Disposition": f'attachment; filename="{safe_name}"'},
+        filename=path.name,
+        headers={"Content-Disposition": f'attachment; filename="{path.name}"'},
     )
-
 
 app.mount("/app", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
