@@ -1495,7 +1495,7 @@ def create_payment(
                 payment_id,
                 user_id,
                 plan.lower(),
-                float(amount)
+                float(amount),
                 currency,
                 provider,
                 None,

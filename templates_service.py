@@ -429,13 +429,10 @@ def _clean_template(raw, index):
     pace = _text(raw.get("pace"), 10).lower()
     pace = pace if pace in ALLOWED_PACES else None
 
-    "hook_style"= _text(raw.get("hook_style"), 40),
-
-    "ending_style"= _text(raw.get("ending_style"), 40),
-
-    "dialogue_style"= _text(raw.get("dialogue_style"), 40),
-
-    "retention_strategy"= _text(raw.get("retention_strategy"), 60),
+    hook_style = _text(raw.get("hook_style"), 100)
+    ending_style = _text(raw.get("ending_style"), 100)
+    dialogue_style = _text(raw.get("dialogue_style"), 100)
+    retention_strategy = _text(raw.get("retention_strategy"), 100)
 
     narration_mode = _text(raw.get("narration_mode"), 10).lower()
     narration_mode = narration_mode if narration_mode in ALLOWED_NARRATION_MODES else None
@@ -461,10 +458,10 @@ def _clean_template(raw, index):
         "script_style": _text(raw.get("script_style"), 400),
         "footage_keywords": _text(raw.get("footage_keywords"), 120),
         "pace": pace,
-        "hook_style": _text(raw.get("hook_style"), 100),
-        "ending_style": _text(raw.get("ending_style"), 100),
-        "dialogue_style": _text(raw.get("dialogue_style"), 100),
-        "retention_strategy": _text(raw.get("retention_strategy"), 100),
+        "hook_style": hook_style,
+        "ending_style": ending_style,
+        "dialogue_style": dialogue_style,
+        "retention_strategy": retention_strategy,
         "_order": order,
     }
 
