@@ -591,13 +591,11 @@ async def forgot_password(request: Request, body: ForgotPasswordRequest):
 
 RESET_PAGE = """<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Reset password</title></head>
 <body style='font-family:Arial,sans-serif;background:#f5f6fb;padding:40px;color:#172033'>
-  <main style='max-width:420px;margin:8vh auto;background:white;padding:32px;border-radius:16px'>
+  <main style='max-width:420px;margin:8vh auto;background:purple-light;padding:32px;border-radius:16px'>
     <h2>Choose a new password</h2>
     <p>Enter a new password for your Clip Pirate account.</p>
     <input id='pw' type='password' placeholder='New password (min 8 characters)' minlength='8'
            style='width:100%;padding:12px;margin:8px 0;border:1px solid #ccd;border-radius:8px;box-sizing:border-box'>
-    <input id='pw2' type='password' placeholder='Confirm new password' minlength='8'
-           style='width:100%;padding:12px;margin:8px 0 10px;border:1px solid #ccd;border-radius:8px;box-sizing:border-box'>
     <input id='pw2' type='password' placeholder='Confirm new password' minlength='8'
            style='width:100%;padding:12px;margin:8px 0 10px;border:1px solid #ccd;border-radius:8px;box-sizing:border-box'>
     <label style='display:block;margin:0 0 16px;font-size:14px;cursor:pointer'>
