@@ -13,6 +13,8 @@ import sqlite3
 import threading
 import traceback
 import uuid
+import shutil
+import time
 from decimal import Decimal, ROUND_HALF_UP
 from email_service import send_email
 from datetime import datetime, timedelta, timezone
@@ -52,10 +54,12 @@ from rate_limiter import (
 )
 
 from db import (
+    expire_project_video,
     init_db,
     create_user,
     get_user_by_email,
     get_user,
+    list_expired_videos,
     store_email_verification_token,
     _conn,
     verify_email_token,
@@ -133,6 +137,9 @@ PAYSTACK_IS_LIVE = bool(PAYSTACK_SECRET_KEY and PAYSTACK_SECRET_KEY.startswith("
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 APP_BASE_URL = os.getenv("APP_BASE_URL", "https://clippirate.onrender.com").rstrip("/")
 EMAIL_VERIFICATION_MINUTES = int(os.getenv("EMAIL_VERIFICATION_MINUTES", "30"))
+VIDEO_RETENTION_DAYS_FREE = int(os.getenv("VIDEO_RETENTION_DAYS_FREE", "12"))
+VIDEO_RETENTION_DAYS_PAID = int(os.getenv("VIDEO_RETENTION_DAYS_PAID", "30"))
+MIN_FREE_DISK_MB = int(os.getenv("MIN_FREE_DISK_MB", "150"))
 
 
 def report_payment_configuration():
@@ -565,6 +572,61 @@ def align_visual_hints(orig_sentences, visuals, final_sentences):
 # Keep references to background tasks so they are not garbage-collected mid-run.
 _background_tasks: set = set()
 
+def _delete_old_files(folder: Path, max_age_seconds: int) -> int:
+    cutoff = time.time() - max_age_seconds
+    removed = 0
+    for f in folder.iterdir():
+        try:
+            if f.is_file() and f.stat().st_mtime < cutoff:
+                f.unlink()
+                removed += 1
+        except OSError:
+            pass
+    return removed
+
+
+def cleanup_old_files():
+    videos_removed = 0
+
+    for row in list_expired_videos(VIDEO_RETENTION_DAYS_FREE, VIDEO_RETENTION_DAYS_PAID):
+        path = DATA_DIR / "videos" / Path(str(row["video_url"])).name
+        try:
+            path.unlink(missing_ok=True)
+        except OSError as exc:
+            print(f"[CLEANUP] Could not delete {path.name}: {exc}", flush=True)
+            continue
+        expire_project_video(row["video_url"])
+        videos_removed += 1
+
+    longest = max(VIDEO_RETENTION_DAYS_FREE, VIDEO_RETENTION_DAYS_PAID)
+    stray_videos = _delete_old_files(DATA_DIR / "videos", (longest + 1) * 86400)
+    audio = _delete_old_files(DATA_DIR / "audio", 86400)
+    clips = _delete_old_files(DATA_DIR / "temp_clips", 86400)
+
+    usage = shutil.disk_usage(DATA_DIR)
+    print(
+        f"[CLEANUP] expired_videos={videos_removed} stray_videos={stray_videos} "
+        f"audio={audio} temp_clips={clips} "
+        f"disk_used={usage.used // 2**20}MB free={usage.free // 2**20}MB",
+        flush=True,
+    )
+
+
+async def cleanup_loop():
+    while True:
+        try:
+            await asyncio.to_thread(cleanup_old_files)
+        except Exception:
+            traceback.print_exc()
+        await asyncio.sleep(6 * 3600)
+
+
+@app.on_event("startup")
+async def start_cleanup():
+    task = asyncio.create_task(cleanup_loop())
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
+
 
 async def process_video_job(job_id: str, user_id: str, topic: str, settings: dict, project_id: str):
     set_status(job_id, JobStatus.PROCESSING)
@@ -718,11 +780,22 @@ async def process_video_job(job_id: str, user_id: str, topic: str, settings: dic
         except Exception:
             traceback.print_exc()
 
+    finally:
+        try:
+            audio_file.unlink(missing_ok=True)
+        except OSError:
+            pass
+
 
 @app.post("/generate")
 @limiter.limit("5/minute")
 async def generate_video(request: Request, body: VideoRequest):
     user = current_user(request)
+    if shutil.disk_usage(DATA_DIR).free < MIN_FREE_DISK_MB * 1024 * 1024:
+        raise HTTPException(
+            status_code=503,
+            detail="Video storage is temporarily full. Please try again shortly.",
+        )
 
     narration_mode = (body.narration_mode or "solo").strip().lower()
 

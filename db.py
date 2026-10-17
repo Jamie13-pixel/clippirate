@@ -2164,6 +2164,37 @@ def expire_project_video(
                 video_url,
             )
         )
+        
+def list_expired_videos(free_days, paid_days):
+
+    """Projects whose stored video is older than their plan's retention."""
+
+    now = datetime.now(timezone.utc)
+
+    free_cutoff = (now - timedelta(days=free_days)).isoformat()
+    paid_cutoff = (now - timedelta(days=paid_days)).isoformat()
+
+    with _conn() as c:
+
+        return c.execute(
+            """
+            SELECT p.id, p.video_url
+
+            FROM projects p
+
+            JOIN users u
+                ON u.id = p.user_id
+
+            WHERE
+                p.video_url IS NOT NULL
+                AND p.video_url != ''
+                AND (
+                    (u.plan = 'free' AND p.created_at < ?)
+                    OR (u.plan != 'free' AND p.created_at < ?)
+                )
+            """,
+            (free_cutoff, paid_cutoff)
+        ).fetchall()
 
 
 def list_projects(
