@@ -468,41 +468,145 @@ async def resend_verification(request: Request, body: ResendVerificationRequest)
     return generic
 
 
+
+AUTH_PAGE_CSS = """
+* { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #0b0d12; --panel: #11141b; --panel-2: #171a22; --border: #292e39;
+  --text: #f5f7fb; --muted: #9299a8; --primary: #7c5cff; --primary-hover: #6847f5;
+  --success: #31c48d; --danger: #ef5b6b;
+}
+body {
+  font-family: Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  background:
+    radial-gradient(circle at top left, rgba(124,92,255,.20), transparent 38%),
+    radial-gradient(circle at bottom right, rgba(49,196,141,.08), transparent 32%),
+    var(--bg);
+  color: var(--text); min-height: 100vh;
+  display: flex; align-items: center; justify-content: center; padding: 24px;
+}
+.card {
+  width: 100%; max-width: 440px; background: var(--panel);
+  border: 1px solid var(--border); border-radius: 20px; padding: 36px 32px;
+  box-shadow: 0 30px 80px rgba(0,0,0,.4); text-align: center;
+}
+.logo { font-size: 24px; font-weight: 800; letter-spacing: -.5px; margin-bottom: 26px; }
+.logo span { color: var(--primary); }
+.icon {
+  width: 56px; height: 56px; border-radius: 50%; margin: 0 auto 18px;
+  display: flex; align-items: center; justify-content: center; font-size: 28px;
+  background: rgba(124,92,255,.14); color: #a895ff;
+}
+.icon.ok { background: rgba(49,196,141,.14); color: var(--success); }
+.icon.bad { background: rgba(239,91,107,.14); color: var(--danger); }
+h1 { font-size: 24px; letter-spacing: -.5px; margin-bottom: 8px; }
+.sub { color: var(--muted); font-size: 14px; line-height: 1.6; margin-bottom: 24px; }
+.btn {
+  width: 100%; border: 0; border-radius: 10px; padding: 14px 18px;
+  background: var(--primary); color: #fff; font: inherit; font-weight: 700;
+  cursor: pointer; display: block; text-decoration: none; transition: background .2s, opacity .2s;
+}
+.btn:hover { background: var(--primary-hover); }
+.btn:disabled { opacity: .6; cursor: not-allowed; }
+.msg {
+  display: none; margin-top: 16px; padding: 12px 14px; border-radius: 10px;
+  font-size: 14px; line-height: 1.5;
+}
+.msg.show { display: block; }
+.msg.error { background: rgba(239,91,107,.10); color: #ff8995; border: 1px solid rgba(239,91,107,.22); }
+.hidden { display: none !important; }
+.foot { margin-top: 22px; font-size: 13px; }
+.foot a { color: var(--muted); }
+.foot a:hover { color: #fff; }
+@media (max-width: 480px) { .card { padding: 28px 22px; border-radius: 16px; } }
+"""
+
+
+def auth_page(title: str, body_html: str, script: str = "") -> str:
+    return (
+        "<!doctype html><html lang='en'><head><meta charset='utf-8'>"
+        "<meta name='viewport' content='width=device-width, initial-scale=1'>"
+        f"<title>{title} · ClipPirate.ai</title><style>{AUTH_PAGE_CSS}</style></head>"
+        "<body><main class='card'>"
+        "<div class='logo'>Clip<span>Pirate</span>.ai</div>"
+        f"{body_html}</main>{script}</body></html>"
+    )
+
+
+VERIFY_BODY = """
+<section id="formView">
+  <div class="icon">&#9993;</div>
+  <h1>Verify your email</h1>
+  <p class="sub">One last step. Confirm your email address to activate your ClipPirate account.</p>
+  <button id="verify" class="btn" type="button">Confirm email</button>
+  <div id="msg" class="msg" role="status"></div>
+  <p class="foot"><a href="/app">Back to login</a></p>
+</section>
+<section id="doneView" class="hidden">
+  <div class="icon ok">&#10003;</div>
+  <h1>Email verified</h1>
+  <p class="sub">Your account is active. Log in to start creating videos.</p>
+  <a class="btn" href="/app">Continue to ClipPirate</a>
+</section>
+"""
+
+VERIFY_SCRIPT = """
+<script>
+  const token = __TOKEN__;
+  const btn = document.getElementById('verify');
+  const msg = document.getElementById('msg');
+  btn.addEventListener('click', async () => {
+    btn.disabled = true; btn.textContent = 'Verifying...';
+    msg.className = 'msg';
+    try {
+      const response = await fetch('/auth/verify', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({token})
+      });
+      const data = await response.json().catch(() => ({}));
+      if (response.ok) {
+        document.getElementById('formView').classList.add('hidden');
+        document.getElementById('doneView').classList.remove('hidden');
+        return;
+      }
+      const d = data.detail;
+      msg.textContent = (d && d.message) || 'This link is invalid or expired. Request a new verification email from the login page.';
+      msg.className = 'msg show error';
+    } catch (err) {
+      msg.textContent = 'Could not reach the server. Check your connection and try again.';
+      msg.className = 'msg show error';
+    }
+    btn.disabled = false; btn.textContent = 'Confirm email';
+  });
+</script>
+"""
+
+INVALID_LINK_BODY = """
+<div class="icon bad">!</div>
+<h1>{heading}</h1>
+<p class="sub">{text}</p>
+<a class="btn" href="/app">Back to ClipPirate</a>
+"""
+
+
 @app.get("/auth/verify", response_class=HTMLResponse)
 def verify_email_page(token: str = Query(default="", max_length=200)):
     # Do not verify on GET: email security scanners often pre-open links.
-    # Require the person to click the confirmation button, which POSTs the token.
+    # The token is only consumed when the person clicks the button (POST).
     if not re.fullmatch(r"[A-Za-z0-9_-]{20,200}", token or ""):
         return HTMLResponse(
-            "<!doctype html><html><body style='font-family:Arial,sans-serif;padding:40px'>"
-            "<h2>Verification link invalid</h2><p>Request a new verification email from Clip Pirate.</p>"
-            "<a href='/app'>Return to Clip Pirate</a></body></html>",
+            auth_page(
+                "Link invalid",
+                INVALID_LINK_BODY.format(
+                    heading="Verification link invalid",
+                    text="This link is incomplete or has expired. Log in to request a new verification email.",
+                ),
+            ),
             status_code=400,
         )
-    page = f"""<!doctype html><html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Verify email</title></head>
-    <body style='font-family:Arial,sans-serif;background:#f5f6fb;padding:40px;color:#172033'>
-      <main style='max-width:480px;margin:8vh auto;background:white;padding:32px;border-radius:16px'>
-        <h2>Verify your email</h2><p>Click below to confirm your email address and activate your Clip Pirate account.</p>
-        <button id='verify' style='padding:12px 18px;background:#6d5dfc;color:white;border:0;border-radius:8px;cursor:pointer'>Confirm email</button>
-        <p id='result' role='status'></p><a id='continue' href='/app' hidden>Continue to Clip Pirate</a>
-      </main>
-      <script>
-        const token = {json.dumps(token)};
-        document.getElementById('verify').addEventListener('click', async () => {{
-          const button = document.getElementById('verify');
-          const result = document.getElementById('result');
-          button.disabled = true; result.textContent = 'Verifying…';
-          try {{
-            const response = await fetch('/auth/verify', {{method:'POST', headers:{{'Content-Type':'application/json'}}, body:JSON.stringify({{token}})}});
-            const data = await response.json();
-            result.textContent = data.message || (response.ok ? 'Email verified.' : 'This link is invalid or expired.');
-            if (response.ok) {{ document.getElementById('continue').hidden = false; button.hidden = true; }}
-            else {{ button.disabled = false; }}
-          }} catch (_) {{ result.textContent = 'Could not verify right now. Please try again.'; button.disabled = false; }}
-        }});
-      </script>
-    </body></html>"""
-    return HTMLResponse(page, status_code=200)
+    script = VERIFY_SCRIPT.replace("__TOKEN__", json.dumps(token))
+    return HTMLResponse(auth_page("Verify email", VERIFY_BODY, script))
 
 
 @app.post("/auth/verify")

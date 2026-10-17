@@ -1030,10 +1030,19 @@
             .sidebar-logo {
                 font-size: 0;
                 text-align: center;
+                padding: 10px 0 20px;
+                width: 100%;
             }
 
-            .sidebar-logo span { font-size: 20px; }
+            .sidebar-logo span { display: none; }
 
+            .sidebar-logo::before {
+                content: "CP";
+                font-size: 20px;
+                font-weight: 800;
+                letter-spacing: -1px;
+                color: var(--primary);
+            }
             .nav-button {
                 justify-content: center;
                 padding: 12px 8px;
