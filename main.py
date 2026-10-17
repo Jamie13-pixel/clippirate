@@ -137,7 +137,7 @@ PAYSTACK_IS_LIVE = bool(PAYSTACK_SECRET_KEY and PAYSTACK_SECRET_KEY.startswith("
 COOKIE_SECURE = os.getenv("COOKIE_SECURE", "false").lower() == "true"
 APP_BASE_URL = os.getenv("APP_BASE_URL", "https://clippirate.onrender.com").rstrip("/")
 EMAIL_VERIFICATION_MINUTES = int(os.getenv("EMAIL_VERIFICATION_MINUTES", "30"))
-VIDEO_RETENTION_DAYS_FREE = int(os.getenv("VIDEO_RETENTION_DAYS_FREE", "12"))
+VIDEO_RETENTION_DAYS_FREE = int(os.getenv("VIDEO_RETENTION_DAYS_FREE", "7"))
 VIDEO_RETENTION_DAYS_PAID = int(os.getenv("VIDEO_RETENTION_DAYS_PAID", "30"))
 MIN_FREE_DISK_MB = int(os.getenv("MIN_FREE_DISK_MB", "150"))
 
