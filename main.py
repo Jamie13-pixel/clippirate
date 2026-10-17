@@ -57,6 +57,7 @@ from db import (
     get_user_by_email,
     get_user,
     store_email_verification_token,
+    _conn,
     verify_email_token,
     is_email_verified,
     create_session,
@@ -161,7 +162,7 @@ def report_payment_configuration():
 def report_storage():
     """Log where data lives and how much is in it, so a wipe is obvious in the logs."""
     try:
-        with sqlite3.connect(DB_PATH) as conn:
+        with _conn() as conn:
             users = conn.execute("SELECT COUNT(*) FROM users").fetchone()[0]
             paid = conn.execute("SELECT COUNT(*) FROM users WHERE plan != 'free'").fetchone()[0]
     except Exception as exc:
@@ -1061,12 +1062,11 @@ def initialize_paystack_payment(request: Request, payload: dict):
         fail_payment(payment_id)
         raise HTTPException(status_code=502, detail="Paystack returned an incomplete transaction.")
 
-    with sqlite3.connect(DB_PATH) as conn:
+    with _conn() as conn:
         conn.execute(
             "UPDATE payments SET provider_reference = ?, updated_at = datetime('now') WHERE id = ?",
             (reference, payment_id),
         )
-        conn.commit()
 
     return {
         "payment_id": payment_id,
