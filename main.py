@@ -38,6 +38,7 @@ from script_generator import generate_script
 from script_quality_control import quality_check_script
 from quota_monitor import monitor_loop
 from analytics_service import build_analytics, set_project_template
+from settings_service import register_settings_routes
 
 from jobs import (
     create_job,
@@ -2036,4 +2037,4 @@ def support_stats(
         "open_conversations":
             count_open_conversations()
     }
-
+register_settings_routes(app, current_user, limiter, SESSION_COOKIE, send_email)
