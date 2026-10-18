@@ -1763,3 +1763,157 @@ def paystack_callback(reference: str | None = None):
     if not reference:
         raise HTTPException(status_code=400, detail="Missing Paystack payment reference.")
     return RedirectResponse(url=f"/app/?payment=paystack&reference={quote(reference, safe='')}")
+
+
+# ============================================================
+# CLIP PIRATE ADMIN DASHBOARD (read-only first release)
+# ============================================================
+# Configure ADMIN_EMAILS in the deployment environment as a comma-separated
+# allowlist of trusted, verified account email addresses. Admin access is
+# denied when the allowlist is missing. Never expose this dashboard publicly.
+ADMIN_EMAILS = {
+    address.strip().lower()
+    for address in os.getenv("ADMIN_EMAILS", os.getenv("ADMIN_EMAIL", "")).split(",")
+    if address.strip()
+}
+
+
+def require_admin(request: Request):
+    """Require a valid verified session and an explicit email allowlist match."""
+    if not ADMIN_EMAILS:
+        raise HTTPException(
+            status_code=503,
+            detail="Admin access is not configured. Set ADMIN_EMAILS in the server environment.",
+        )
+    user = current_user(request)
+    email = str(user["email"] or "").strip().lower()
+    if not any(hmac.compare_digest(email, allowed) for allowed in ADMIN_EMAILS):
+        raise HTTPException(status_code=403, detail="Admin access required.")
+    return user
+
+
+def _admin_row_dict(row):
+    return dict(row) if row is not None else None
+
+
+@app.get("/admin", response_class=HTMLResponse)
+def admin_dashboard(request: Request):
+    try:
+        require_admin(request)
+    except HTTPException as exc:
+        if exc.status_code == 401:
+            return RedirectResponse(url="/app", status_code=303)
+        if exc.status_code == 403:
+            raise
+        raise
+    admin_file = STATIC_DIR / "admin.html"
+    if not admin_file.is_file():
+        raise HTTPException(status_code=404, detail="Admin dashboard file is missing from the static directory.")
+    return FileResponse(admin_file, media_type="text/html")
+
+
+@app.get("/admin/api/overview")
+def admin_overview(request: Request):
+    require_admin(request)
+    with _conn() as conn:
+        users = conn.execute("""
+            SELECT
+                COUNT(*) AS total,
+                COALESCE(SUM(CASE WHEN email_verified = 1 THEN 1 ELSE 0 END), 0) AS verified,
+                COALESCE(SUM(CASE WHEN email_verified = 0 THEN 1 ELSE 0 END), 0) AS unverified,
+                COALESCE(SUM(CASE WHEN LOWER(plan) != 'free' AND subscription_status = 'active' THEN 1 ELSE 0 END), 0) AS paid_active,
+                COALESCE(SUM(credits), 0) AS credits_remaining,
+                COALESCE(SUM(CASE WHEN datetime(created_at) >= datetime('now', '-7 days') THEN 1 ELSE 0 END), 0) AS new_last_7_days
+            FROM users
+        """).fetchone()
+        projects = conn.execute("""
+            SELECT
+                COUNT(*) AS total,
+                COALESCE(SUM(CASE WHEN LOWER(status) = 'completed' THEN 1 ELSE 0 END), 0) AS completed,
+                COALESCE(SUM(CASE WHEN LOWER(status) = 'failed' THEN 1 ELSE 0 END), 0) AS failed,
+                COALESCE(SUM(CASE WHEN LOWER(status) IN ('pending', 'processing', 'queued', 'running') THEN 1 ELSE 0 END), 0) AS in_progress
+            FROM projects
+        """).fetchone()
+        jobs = conn.execute("""
+            SELECT
+                COUNT(*) AS total,
+                COALESCE(SUM(CASE WHEN LOWER(status) IN ('pending', 'processing', 'queued', 'running') THEN 1 ELSE 0 END), 0) AS in_progress,
+                COALESCE(SUM(CASE WHEN LOWER(status) = 'failed' THEN 1 ELSE 0 END), 0) AS failed
+            FROM jobs
+        """).fetchone()
+        revenue = conn.execute("""
+            SELECT UPPER(currency) AS currency, COALESCE(SUM(amount), 0) AS total, COUNT(*) AS payment_count
+            FROM payments
+            WHERE LOWER(status) = 'paid'
+            GROUP BY UPPER(currency)
+            ORDER BY UPPER(currency)
+        """).fetchall()
+        recent_users = conn.execute("""
+            SELECT id, name, email, email_verified, plan, credits, subscription_status, created_at
+            FROM users ORDER BY created_at DESC LIMIT 8
+        """).fetchall()
+    return {
+        "users": _admin_row_dict(users),
+        "projects": _admin_row_dict(projects),
+        "jobs": _admin_row_dict(jobs),
+        "paid_revenue_by_currency": [dict(row) for row in revenue],
+        "recent_users": [dict(row) for row in recent_users],
+        "generated_at": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@app.get("/admin/api/users")
+def admin_users(request: Request, q: str = Query(default="", max_length=120), limit: int = Query(default=50, ge=1, le=100), offset: int = Query(default=0, ge=0)):
+    require_admin(request)
+    query = f"%{q.strip()}%"
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT id, name, email, email_verified, plan, credits, monthly_limit,
+                   daily_generation_limit, subscription_status, subscription_started_at,
+                   subscription_expires_at, created_at
+            FROM users
+            WHERE (? = '' OR name LIKE ? OR email LIKE ? OR id LIKE ?)
+            ORDER BY created_at DESC
+            LIMIT ? OFFSET ?
+        """, (q.strip(), query, query, query, limit, offset)).fetchall()
+        total = conn.execute("""
+            SELECT COUNT(*) FROM users
+            WHERE (? = '' OR name LIKE ? OR email LIKE ? OR id LIKE ?)
+        """, (q.strip(), query, query, query)).fetchone()[0]
+    return {"users": [dict(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+
+
+@app.get("/admin/api/jobs")
+def admin_jobs(request: Request, limit: int = Query(default=50, ge=1, le=100), offset: int = Query(default=0, ge=0)):
+    require_admin(request)
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT j.id, j.user_id, u.name AS user_name, u.email,
+                   j.project_id, p.topic, j.status, j.created_at,
+                   substr(COALESCE(j.error, ''), 1, 500) AS error
+            FROM jobs j
+            LEFT JOIN users u ON u.id = j.user_id
+            LEFT JOIN projects p ON p.id = j.project_id
+            ORDER BY j.created_at DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset)).fetchall()
+        total = conn.execute("SELECT COUNT(*) FROM jobs").fetchone()[0]
+    return {"jobs": [dict(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+
+
+@app.get("/admin/api/payments")
+def admin_payments(request: Request, limit: int = Query(default=50, ge=1, le=100), offset: int = Query(default=0, ge=0)):
+    require_admin(request)
+    with _conn() as conn:
+        rows = conn.execute("""
+            SELECT p.id, p.user_id, u.name AS user_name, u.email,
+                   p.plan, p.amount, p.currency, p.provider,
+                   p.provider_reference, p.status, p.created_at, p.updated_at
+            FROM payments p
+            LEFT JOIN users u ON u.id = p.user_id
+            ORDER BY p.created_at DESC
+            LIMIT ? OFFSET ?
+        """, (limit, offset)).fetchall()
+        total = conn.execute("SELECT COUNT(*) FROM payments").fetchone()[0]
+    return {"payments": [dict(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+
