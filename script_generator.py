@@ -506,29 +506,57 @@ PACE_GUIDANCE = {
             "to breathe (still one sentence per line).",
 }
 
+HOOK_GUIDANCE = {
+    "descriptive":
+        "Open with a vivid, concrete image or detail that pulls the viewer in.",
+    "intriguing":
+        "Open with a surprising question or claim that makes the viewer need the answer.",
+    "shocking":
+        "Open with a bold, startling statement, then back it up with facts.",
+    "inspirational":
+        "Open with a relatable struggle or a statement that earns attention, never a cliche.",
+    "podcast":
+        "HOST opens conversationally with the topic and a hook question.",
+    "breaking_news":
+        "Open with a concise, newsworthy lead sentence, as a studio anchor would.",
+}
+
 ENDING_GUIDANCE = {
     "curiosity_loop":
         "End with an intriguing unresolved question or surprising fact.",
-
     "resolution":
-        "End with a satisfying conclusion.",
-
+        "End with a satisfying conclusion that resolves the story.",
     "call_to_action":
-        "End with an inspirational takeaway.",
-
+        "End with one memorable takeaway and a realistic action the viewer can take.",
     "discussion":
-        "End naturally as if continuing a conversation.",
-
+        "End naturally, as if the conversation could continue.",
     "broadcast_sign_off":
-        "End with a natural sign-off, as if the video is a broadcast.",
-
+        "End with a natural broadcast sign-off or studio handoff.",
     "memorable":
-        "End with a memorable final line that leaves an impression."
+        "End with a memorable final line that leaves an impression.",
+}
 
+RETENTION_GUIDANCE = {
+    "high":
+        "Keep momentum high: every line should add something new or raise a "
+        "question; no filler, no repeated points.",
+}
+
+DIALOGUE_GUIDANCE = {
+    "curiosity_loop":
+        "Each GUEST line should make the viewer want the next HOST line.",
 }
 
 
-def _template_block(template, with_visuals):
+def _guided(value, table):
+    """Known keys map to a full instruction; free text from Notion is used as-is."""
+    value = str(value or "").strip()
+    if not value:
+        return ""
+    return table.get(value.lower().replace(" ", "_"), value)
+
+
+def _template_block(template, with_visuals, dialogue_mode=False):
     """Extra prompt text built from a template's private style fields.
 
     Returns "" when there is no template or it has nothing to add."""
@@ -552,21 +580,23 @@ def _template_block(template, with_visuals):
             f"- Footage themes to favour when they fit the line: {keywords}. "
             "Every visual must still match what its line is about."
         )
-    hook_style = str( template.get("hook_style") or "").strip()
-    if hook_style:
-        lines.append(f"- Opening hook style: {hook_style}")
 
-    ending_style = str(template.get("ending_style") or "").strip()
-    if ending_style:
-        lines.append( f"- Ending style: {ending_style}")
+    hook = _guided(template.get("hook_style"), HOOK_GUIDANCE)
+    if hook:
+        lines.append(f"- Opening hook: {hook}")
 
-    dialogue_style = str(template.get("dialogue_style") or "").strip()
-    if dialogue_style:
-        lines.append(f"- Dialogue style: {dialogue_style}")
+    ending = _guided(template.get("ending_style"), ENDING_GUIDANCE)
+    if ending:
+        lines.append(f"- Ending (overrides any other ending rule): {ending}")
 
-    retention_strategy = str(template.get("retention_strategy") or "").strip()
-    if retention_strategy:
-        lines.append(f"- Retention strategy: {retention_strategy}")
+    if dialogue_mode:
+        dialogue = _guided(template.get("dialogue_style"), DIALOGUE_GUIDANCE)
+        if dialogue:
+            lines.append(f"- Dialogue: {dialogue}")
+
+    retention = _guided(template.get("retention_strategy"), RETENTION_GUIDANCE)
+    if retention:
+        lines.append(f"- Retention: {retention}")
 
     if not lines:
         return ""
@@ -634,7 +664,7 @@ def generate_script(
         topic, duration, word_count, with_visuals, dialogue_mode
     )
 
-    style_block = _template_block(template, with_visuals)
+    style_block = _template_block(template, with_visuals, dialogue_mode)
 
     if style_block:
         marker = "Return ONLY valid JSON."
