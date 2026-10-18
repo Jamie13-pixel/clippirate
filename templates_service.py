@@ -97,7 +97,8 @@ def _builtin(
     hook_style=None,
     ending_style=None,
     dialogue_style=None,
-    retention_strategy=None
+    retention_strategy=None,
+    voice=None
 ):
     return {
         "id": id_,
@@ -107,7 +108,7 @@ def _builtin(
         "prompt": prompt,
         "duration": None,
         "ratio": None,
-        "voice": None,
+        "voice": voice,
         "narration_mode": narration_mode,
         "accent": accent,
         "cover_url": cover_url,
@@ -151,6 +152,7 @@ BUILTIN_TEMPLATES = [
         ending_style="memorable",
         dialogue_style="curiosity_loop",
         retention_strategy="high",
+        voice="professional",
         accent="#31c48d"
     ),
 
@@ -180,6 +182,7 @@ BUILTIN_TEMPLATES = [
         ending_style="memorable",
         dialogue_style="curiosity_loop",
         retention_strategy="high",
+        voice="energetic",
         accent="#5cc8ff"
     ),
 
@@ -212,6 +215,7 @@ BUILTIN_TEMPLATES = [
         ending_style="resolution",
         dialogue_style="curiosity_loop",
         retention_strategy="high",
+        voice="calm",
         accent="#c77dff"
     ),
 
@@ -242,6 +246,7 @@ BUILTIN_TEMPLATES = [
         ending_style="call_to_action",
         dialogue_style="curiosity_loop",
         retention_strategy="high",
+        voice="energetic",
         accent="#ff8a5c"
     ),
 
@@ -274,6 +279,7 @@ BUILTIN_TEMPLATES = [
         ending_style="memorable",
         dialogue_style="curiosity_loop",
         retention_strategy="high",
+        voice="energetic",
         accent="#ef5b6b"
     ),
 
@@ -309,6 +315,7 @@ BUILTIN_TEMPLATES = [
         ending_style="discussion",
         dialogue_style="curiosity_loop",
         retention_strategy="high",
+        voice="calm",
         accent="#7c5cff"
     ),
 
@@ -346,6 +353,7 @@ BUILTIN_TEMPLATES = [
         ending_style="broadcast_sign_off",
         dialogue_style="curiosity_loop",
         retention_strategy="high",
+        voice="professional",
         accent="#4f8cff"
     ),
 
