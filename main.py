@@ -37,6 +37,7 @@ from templates_service import get_templates, get_template
 from script_generator import generate_script
 from script_quality_control import quality_check_script
 from quota_monitor import monitor_loop
+from analytics_service import build_analytics, set_project_template
 
 from jobs import (
     create_job,
@@ -216,6 +217,10 @@ def stream_video(request: Request, filename: str):
         media_type="video/mp4",
         headers={"Cache-Control": "private, max-age=3600"},
     )
+
+@app.get("/analytics")
+def analytics(request: Request):
+    return build_analytics(current_user(request))
 
 
 @app.get("/download/{filename}")
@@ -1335,6 +1340,7 @@ async def generate_video(request: Request, body: VideoRequest):
         refund_credits(user["id"], cost)
         refund_generation(user["id"])
         raise
+    set_project_template(project_id, body.template_id)
 
     job_id = create_job(user["id"], project_id)
     template = get_template(body.template_id) if body.template_id else None
