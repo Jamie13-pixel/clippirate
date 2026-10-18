@@ -329,6 +329,9 @@ def auth_health():
 
 @app.api_route("/", methods=["GET", "HEAD"])
 async def root():
+    landing = STATIC_DIR / "landing.html"
+    if landing.exists():
+        return FileResponse(landing)
     return {"service": APP_NAME, "status": "running", "app": "/app"}
 
 
