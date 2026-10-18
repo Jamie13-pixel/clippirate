@@ -1167,6 +1167,7 @@ async def process_video_job(job_id: str, user_id: str, topic: str, settings: dic
             str(audio_file),
             voice_profile=settings["voice"],
             target_duration=settings["duration"],
+            prefer_edge=(settings.get("plan", "free") == "free"),
         )
         print(f"[JOB {job_id}] TTS completed: {audio_file}", flush=True)
 
@@ -1337,6 +1338,7 @@ async def generate_video(request: Request, body: VideoRequest):
         "credit_cost": cost,
         "template": template,
         "narration_mode": narration_mode,   # not body.narration_mode
+        "plan": str(user["plan"]).lower(),
     }
     task = asyncio.create_task(process_video_job(job_id, user["id"], topic, settings, project_id))
     _background_tasks.add(task)

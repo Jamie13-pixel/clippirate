@@ -317,8 +317,10 @@ async def _render_lines(items, provider, voice_profile, temp_dir):
         raise
 
 
-async def _render_with_backup(items, voice_profile, temp_dir):
-    primary = os.getenv("TTS_PRIMARY", "elevenlabs").strip().lower()
+async def _render_with_backup(items, voice_profile, temp_dir, prefer_edge=False):
+    # prefer_edge (used for free-plan users) puts edge-tts first and keeps
+    # ElevenLabs as the fallback. Otherwise TTS_PRIMARY decides, as before.
+    primary = "edge" if prefer_edge else os.getenv("TTS_PRIMARY", "elevenlabs").strip().lower()
     order = ["edge", "elevenlabs"] if primary == "edge" else ["elevenlabs", "edge"]
 
     last_exc = None
@@ -397,6 +399,7 @@ async def create_dialogue_voice(
     voice_profile=DEFAULT_VOICE,
     temp_dir=None,
     target_duration=None,
+    prefer_edge=False,
 ):
     """
     Synthesize dialogue and return timing metadata. Uses ElevenLabs first
@@ -417,7 +420,7 @@ async def create_dialogue_voice(
 
     try:
 
-        line_paths = await _render_with_backup(items, voice_profile, temp_dir)
+        line_paths = await _render_with_backup(items, voice_profile, temp_dir, prefer_edge)
 
         # ----------------------------------------------------
         # LOAD GENERATED AUDIO
