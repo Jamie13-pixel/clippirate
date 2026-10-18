@@ -94,16 +94,19 @@ def get_fallback_voice(profile):
         "onwK4e9ZLuTAKqWW03F9"
     )
 
-    EDGE_VOICES = {
+
+# Backup (edge-tts) voices: [HOST, GUEST] per profile.
+EDGE_VOICES = {
     "professional": ["en-US-GuyNeural", "en-US-JennyNeural"],
     "energetic":    ["en-US-ChristopherNeural", "en-US-AriaNeural"],
     "calm":         ["en-US-AndrewNeural", "en-US-EmmaNeural"],
-    }
+}
 
 
 def build_edge_voice_map(profile):
     pair = EDGE_VOICES.get((profile or DEFAULT_VOICE).lower(), EDGE_VOICES[DEFAULT_VOICE])
     return {"HOST": pair[0], "GUEST": pair[1]}
+
 
 # ============================================================
 # TTS SYNTHESIS
@@ -209,7 +212,7 @@ async def _synthesize_line(text, voice, path):
             _remove(path)
 
             if _is_quota_error(exc):
-                _block_eleven(3600) 
+                _block_eleven(3600)
                 print("[TTS] ELEVENLABS QUOTA EXHAUSTED - top up or upgrade the plan.", flush=True)
                 raise TTSUnavailable(
                     "Voice generation is temporarily unavailable. "
@@ -226,6 +229,7 @@ async def _synthesize_line(text, voice, path):
                 flush=True,
             )
             await asyncio.sleep(delay)
+
 
 _eleven_blocked_until = 0.0
 
@@ -428,7 +432,6 @@ async def create_dialogue_voice(
 
             clip = await asyncio.to_thread(AudioFileClip, path)
 
-
             duration = float(
                 clip.duration
             )
@@ -468,7 +471,6 @@ async def create_dialogue_voice(
         )
 
         await asyncio.to_thread(final_audio.write_audiofile, combined_file, logger=None)
-
 
         final_audio.close()
 
@@ -510,7 +512,6 @@ async def create_dialogue_voice(
                 adjusted_file,
                 output_file
             )
-            
 
             # Update timeline proportionally.
             if natural_duration > 0:
