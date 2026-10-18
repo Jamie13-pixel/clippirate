@@ -94,6 +94,16 @@ from db import (
     recover_stale_jobs,
     public_user,
     user_owns_video,
+    create_support_conversation,
+    add_support_message,
+    get_support_conversation,
+    get_support_conversations,
+    get_user_conversations,
+    get_support_messages,
+    update_conversation_status,
+    delete_support_conversation,
+    count_open_conversations,
+    create_support_ticket,
     DB_PATH,
 )
 
@@ -233,6 +243,7 @@ def download_video(request: Request, filename: str):
         headers={"Content-Disposition": f'attachment; filename="{path.name}"'},
     )
 
+
 app.mount("/app", StaticFiles(directory=STATIC_DIR, html=True), name="static")
 
 init_db()
@@ -275,6 +286,13 @@ class VideoRequest(BaseModel):
     captions: bool = True
     template_id: str = Field(default="", max_length=60)
     narration_mode: str = "solo"
+
+
+class SupportReplyRequest(BaseModel):
+    message: str = Field(
+        min_length=1,
+        max_length=5000
+    )
 
 
 def current_user(request: Request):
@@ -339,6 +357,12 @@ async def root():
         return FileResponse(landing)
     return {"service": APP_NAME, "status": "running", "app": "/app"}
 
+@app.get("/admin/api/conversations")
+
+@app.get("/admin/api/conversations/{id}")
+
+@app.post("/admin/api/conversations/{id}/reply")
+
 
 @app.get("/dashboard")
 async def dashboard(request: Request):
@@ -347,8 +371,6 @@ async def dashboard(request: Request):
     except HTTPException:
         return RedirectResponse(url="/app", status_code=303)
     return FileResponse(STATIC_DIR / "index.html")
-
-
 
 async def send_verification_email(email: str, raw_token: str) -> None:
     """Send a verification link through Brevo."""
@@ -1916,4 +1938,102 @@ def admin_payments(request: Request, limit: int = Query(default=50, ge=1, le=100
         """, (limit, offset)).fetchall()
         total = conn.execute("SELECT COUNT(*) FROM payments").fetchone()[0]
     return {"payments": [dict(row) for row in rows], "total": total, "limit": limit, "offset": offset}
+
+@app.get("/admin/api/conversations")
+def admin_conversations(
+    request: Request
+):
+    require_admin(request)
+
+    conversations = (
+        get_support_conversations()
+    )
+
+    return {
+        "conversations": [
+            dict(row)
+            for row in conversations
+        ]
+    }
+
+@app.get(
+    "/admin/api/conversations/{conversation_id}"
+)
+def admin_conversation(
+    conversation_id: str,
+    request: Request
+):
+    require_admin(request)
+
+    conversation = (
+        get_support_conversation(
+            conversation_id
+        )
+    )
+
+    if not conversation:
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found."
+        )
+
+    messages = (
+        get_support_messages(
+            conversation_id
+        )
+    )
+
+    return {
+        "conversation": dict(conversation),
+        "messages": [
+            dict(msg)
+            for msg in messages
+        ]
+    }
+
+@app.post(
+    "/admin/api/conversations/{conversation_id}/reply"
+)
+def admin_reply(
+    conversation_id: str,
+    payload: SupportReplyRequest,
+    request: Request
+):
+    admin = require_admin(request)
+
+    conversation = (
+        get_support_conversation(
+            conversation_id
+        )
+    )
+
+    if not conversation:
+        raise HTTPException(
+            status_code=404,
+            detail="Conversation not found."
+        )
+
+    add_support_message(
+        conversation_id,
+        "admin",
+        admin["id"],
+        payload.message
+    )
+
+    return {
+        "ok": True
+    }
+
+@app.get(
+    "/admin/api/support/stats"
+)
+def support_stats(
+    request: Request
+):
+    require_admin(request)
+
+    return {
+        "open_conversations":
+            count_open_conversations()
+    }
 

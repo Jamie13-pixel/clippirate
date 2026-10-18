@@ -398,6 +398,40 @@ def init_db():
                 UNIQUE(user_id, usage_date)
             );
 
+            CREATE TABLE IF NOT EXISTS support_conversations (
+                id TEXT PRIMARY KEY,
+
+                user_id TEXT NOT NULL,
+
+                status TEXT NOT NULL
+                DEFAULT 'open',
+
+                subject TEXT,
+
+                created_at TEXT NOT NULL,
+
+                FOREIGN KEY(user_id)
+                REFERENCES users(id)
+                ON DELETE CASCADE
+            );
+
+            CREATE TABLE IF NOT EXISTS support_messages (
+                id TEXT PRIMARY KEY,
+
+                conversation_id TEXT NOT NULL,
+
+                sender_type TEXT NOT NULL,
+
+                sender_id TEXT,
+
+                message TEXT NOT NULL,
+
+                created_at TEXT NOT NULL,
+
+                FOREIGN KEY(conversation_id)
+                REFERENCES support_conversations(id)
+                ON DELETE CASCADE
+           );
 
             CREATE INDEX IF NOT EXISTS idx_projects_user
 
@@ -430,6 +464,20 @@ def init_db():
                 ON daily_generation_usage(
                     user_id,
                     usage_date
+                );
+
+            CREATE INDEX IF NOT EXISTS
+                idx_support_conversations_user
+                ON support_conversations(
+                    user_id,
+                    created_at DESC
+                );
+
+            CREATE INDEX IF NOT EXISTS
+                idx_support_messages_conversation
+                ON support_messages(
+                    conversation_id,
+                    created_at
                 );
             """
         )
@@ -1054,6 +1102,237 @@ def delete_expired_auth_rows():
         ).rowcount
 
     return sessions, verification, resets
+
+# ============================================================
+# SUPPORT CENTER
+# ============================================================
+
+def create_support_conversation(
+    user_id,
+    subject="General Support"
+):
+    conversation_id = secrets.token_hex(16)
+
+    with _conn() as c:
+        c.execute(
+            """
+            INSERT INTO support_conversations(
+                id,
+                user_id,
+                status,
+                subject,
+                created_at
+            )
+            VALUES(
+                ?, ?, ?, ?, ?
+            )
+            """,
+            (
+                conversation_id,
+                user_id,
+                "open",
+                subject,
+                now_iso()
+            )
+        )
+
+    return conversation_id
+
+
+def add_support_message(
+    conversation_id,
+    sender_type,
+    sender_id,
+    message
+):
+    message_id = secrets.token_hex(16)
+
+    with _conn() as c:
+        c.execute(
+            """
+            INSERT INTO support_messages(
+                id,
+                conversation_id,
+                sender_type,
+                sender_id,
+                message,
+                created_at
+            )
+            VALUES(
+                ?, ?, ?, ?, ?, ?
+            )
+            """,
+            (
+                message_id,
+                conversation_id,
+                sender_type,
+                sender_id,
+                message.strip(),
+                now_iso()
+            )
+        )
+
+    return message_id
+
+
+def get_support_conversation(
+    conversation_id
+):
+    with _conn() as c:
+        return c.execute(
+            """
+            SELECT *
+            FROM support_conversations
+            WHERE id = ?
+            """,
+            (
+                conversation_id,
+            )
+        ).fetchone()
+
+
+def get_support_conversations():
+    with _conn() as c:
+        return c.execute(
+            """
+            SELECT
+                c.*,
+                u.name,
+                u.email,
+                u.plan
+            FROM support_conversations c
+            JOIN users u
+            ON u.id = c.user_id
+
+            ORDER BY c.created_at DESC
+            """
+        ).fetchall()
+
+
+def get_user_conversations(
+    user_id
+):
+    with _conn() as c:
+        return c.execute(
+            """
+            SELECT *
+            FROM support_conversations
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            """,
+            (
+                user_id,
+            )
+        ).fetchall()
+
+
+def get_support_messages(
+    conversation_id
+):
+    with _conn() as c:
+        return c.execute(
+            """
+            SELECT *
+            FROM support_messages
+            WHERE conversation_id = ?
+            ORDER BY created_at ASC
+            """,
+            (
+                conversation_id,
+            )
+        ).fetchall()
+
+
+def update_conversation_status(
+    conversation_id,
+    status
+):
+    allowed = {
+        "open",
+        "pending",
+        "resolved",
+        "closed"
+    }
+
+    status = status.lower()
+
+    if status not in allowed:
+        raise ValueError(
+            "Invalid conversation status."
+        )
+
+    with _conn() as c:
+        c.execute(
+            """
+            UPDATE support_conversations
+            SET status = ?
+            WHERE id = ?
+            """,
+            (
+                status,
+                conversation_id
+            )
+        )
+
+
+def delete_support_conversation(
+    conversation_id
+):
+    with _conn() as c:
+        c.execute(
+            """
+            DELETE FROM support_conversations
+            WHERE id = ?
+            """,
+            (
+                conversation_id,
+            )
+        )
+
+
+def count_open_conversations():
+    with _conn() as c:
+        row = c.execute(
+            """
+            SELECT COUNT(*) AS total
+            FROM support_conversations
+            WHERE status IN (
+                'open',
+                'pending'
+            )
+            """
+        ).fetchone()
+
+    return row["total"] if row else 0
+
+
+def create_support_ticket(
+    user_id,
+    subject,
+    initial_message
+):
+    """
+    Convenience helper.
+
+    Creates conversation and
+    first user message together.
+    """
+
+    conversation_id = (
+        create_support_conversation(
+            user_id,
+            subject
+        )
+    )
+
+    add_support_message(
+        conversation_id,
+        "user",
+        user_id,
+        initial_message
+    )
+
+    return conversation_id
 
 
 # ============================================================
