@@ -1800,6 +1800,7 @@
     let analyticsTimer = null;
     let templateRegistry = {};
     let currentPlanId = "free";
+    let pollToken = 0;
 
     const CURRENCY_STORAGE_KEY = "clipPirateCurrency";
     let selectedCurrency = "";
@@ -2206,6 +2207,52 @@
         showAuthScreen();
 
         return false;
+    }
+    function resetSessionState() {
+
+        // Invalidate any status polling still running for the previous user.
+        pollToken++;
+
+        if (statusTimer) {
+            clearTimeout(statusTimer);
+            statusTimer = null;
+        }
+
+        const topic = document.getElementById("videoTopic");
+        if (topic) topic.value = "";
+
+        const box = document.getElementById("generationStatus");
+        if (box) {
+            box.innerHTML = "";
+            box.className = "generation-status";
+        }
+
+        const button = document.getElementById("generateButton");
+        if (button) {
+            button.disabled = false;
+            button.textContent = "Generate Video";
+        }
+
+        activeTemplate = null;
+        showActiveTemplate();
+
+        try {
+            localStorage.removeItem("clipPirateTemplate");
+        } catch (error) {
+            // ignore
+        }
+    }
+
+
+    function showAuthScreen() {
+
+        resetSessionState();
+
+        stopAnalyticsRefresh();
+        stopTemplatesRefresh();
+
+        document.getElementById("authScreen").classList.remove("hidden");
+        document.getElementById("appScreen").classList.add("hidden");
     }
 
 
@@ -2830,13 +2877,16 @@
        JOB STATUS
     ===================================================== */
 
-    async function pollJobStatus(jobId) {
+    async function pollJobStatus(jobId, token = pollToken) {
 
         const button = document.getElementById("generateButton");
 
         try {
 
             const data = await api("/status/" + encodeURIComponent(jobId));
+
+            // Logged out or switched account while this request was in flight.
+            if (token !== pollToken) return;
 
             if (data.status === "completed") {
 
@@ -2879,9 +2929,11 @@
 
             showGenerationStatus("Video is being generated...", "loading");
 
-            statusTimer = setTimeout(() => pollJobStatus(jobId), 3000);
+            statusTimer = setTimeout(() => pollJobStatus(jobId, token), 3000);
 
         } catch (error) {
+
+            if (token !== pollToken) return;
 
             showGenerationStatus(
                 error.message || "Could not check generation status.",
@@ -2892,7 +2944,6 @@
             button.textContent = "Generate Video";
         }
     }
-
 
     /* =====================================================
        TEMPLATES
