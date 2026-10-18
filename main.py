@@ -36,6 +36,7 @@ from tts import create_dialogue_voice
 from templates_service import get_templates, get_template
 from script_generator import generate_script
 from script_quality_control import quality_check_script
+from quota_monitor import monitor_loop
 
 from jobs import (
     create_job,
@@ -1082,6 +1083,10 @@ async def start_cleanup():
     task = asyncio.create_task(cleanup_loop())
     _background_tasks.add(task)
     task.add_done_callback(_background_tasks.discard)
+
+    quota_task = asyncio.create_task(monitor_loop())
+    _background_tasks.add(quota_task)
+    quota_task.add_done_callback(_background_tasks.discard)
 
 
 async def process_video_job(job_id: str, user_id: str, topic: str, settings: dict, project_id: str):
