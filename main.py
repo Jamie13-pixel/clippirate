@@ -41,6 +41,7 @@ from analytics_service import build_analytics, set_project_template
 from settings_service import register_settings_routes
 from reminders_service import register_reminder_routes
 from account_service import register_account_routes
+from support_service import register_support_routes
 
 from jobs import (
     create_job,
@@ -359,12 +360,6 @@ async def root():
     if landing.exists():
         return FileResponse(landing)
     return {"service": APP_NAME, "status": "running", "app": "/app"}
-
-@app.get("/admin/api/conversations")
-
-@app.get("/admin/api/conversations/{id}")
-
-@app.post("/admin/api/conversations/{id}/reply")
 
 
 @app.get("/dashboard")
@@ -2041,4 +2036,5 @@ def support_stats(
     }
 register_settings_routes(app, current_user, limiter, SESSION_COOKIE, send_email)
 register_reminder_routes(app, current_user, limiter, send_email)
-register_account_routes(app, current_user, limiter, SESSION_COOKIE, send_email, delete_video_file)
+register_account_routes(app, current_user, limiter, SESSION_COOKIE, send_email)
+register_support_routes(app, current_user, limiter, require_admin, STATIC_DIR, send_email)

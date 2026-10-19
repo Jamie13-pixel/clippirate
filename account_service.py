@@ -2,13 +2,12 @@
 Download my data and Delete account.
 
     from account_service import register_account_routes
-    register_account_routes(app, current_user, limiter, SESSION_COOKIE, send_email, delete_video_file)
+    register_account_routes(app, current_user, limiter, SESSION_COOKIE, send_email)
 
 Call it once, at the very bottom of main.py, after the other register_* lines.
-`delete_video_file` is optional: a function that takes a project's stored
-video_url and removes the file (use the same function main.py already uses to
-delete expired videos). Without it the account is still deleted, but the video
-files stay on disk, so pass it.
+`delete_video_file` is optional. By default the built-in default_delete_video_file
+finds each video by name under DATA_DIR and deletes it. Pass your own function
+(taking the stored video_url) only if your videos are stored somewhere else.
 
 Routes added:
 
@@ -27,12 +26,15 @@ Every error uses a plain-text `detail` so the app can show it as a message.
 """
 
 import hashlib
+import os
 from datetime import datetime, timezone
+from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 from fastapi import HTTPException, Request, Response
 from pydantic import BaseModel
 
-from db import _conn, now_iso, verify_password
+from db import DATA_DIR, _conn, now_iso, verify_password
 
 _schema_ready = False
 
@@ -74,12 +76,68 @@ def _user_ref(user_id):
     return hashlib.sha256(str(user_id).encode()).hexdigest()[:16]
 
 
+_VIDEO_EXTENSIONS = {".mp4", ".mov", ".webm", ".m4v", ".mkv"}
+
+
+def default_delete_video_file(video_url):
+    """
+    Remove the stored file behind a project's video_url.
+
+    The file is found by name anywhere under DATA_DIR (the persistent disk),
+    so it works whatever sub-folder the videos are saved in. Only video files
+    inside DATA_DIR are ever deleted, and a file that another project still
+    points at is left alone. A video that is not stored locally (for example
+    a remote URL) has nothing to delete and is skipped.
+
+    Returns the number of files removed.
+    """
+
+    name = Path(unquote(urlparse(str(video_url or "")).path)).name
+
+    if not name or Path(name).suffix.lower() not in _VIDEO_EXTENSIONS:
+        return 0
+
+    root = Path(DATA_DIR).resolve()
+
+    if not root.is_dir():
+        return 0
+
+    with _conn() as c:
+        still_used = c.execute(
+            "SELECT 1 FROM projects WHERE video_url = ? LIMIT 1", (video_url,)
+        ).fetchone()
+
+    if still_used:
+        return 0
+
+    removed = 0
+
+    for found in root.rglob(name):
+
+        try:
+            resolved = found.resolve()
+
+            if (
+                resolved.is_file()
+                and root in resolved.parents
+                and resolved.name == name
+            ):
+                resolved.unlink()
+                removed += 1
+                print(f"[ACCOUNT] Removed video file {resolved}", flush=True)
+
+        except Exception as error:
+            print(f"[ACCOUNT] Could not remove {found}: {type(error).__name__}: {error}", flush=True)
+
+    return removed
+
+
 def _delete_files(urls, delete_video_file):
 
     removed = 0
 
     if delete_video_file is None:
-        return removed
+        delete_video_file = default_delete_video_file
 
     for url in urls:
 

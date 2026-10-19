@@ -17,6 +17,7 @@
     <button data-view="users"><span class="ico">♙</span>Users</button>
     <button data-view="jobs"><span class="ico">▷</span>Video jobs</button>
     <button data-view="payments"><span class="ico">＄</span>Payments</button>
+    <button data-view="support"><span class="ico">✉</span>Support</button>
   </nav>
   <div class="side-note"><b>● Protected area</b>Read-only administration is enabled. Changes to accounts, plans and credits are intentionally not exposed in this first release.</div>
 </aside>
@@ -39,17 +40,76 @@
   <section id="usersView" class="hidden"><section class="panel"><div class="panel-head"><h2>Account directory</h2><input class="search" id="userSearch" type="search" maxlength="120" placeholder="Search name, email or user ID"></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Verified</th><th>Plan</th><th>Credits</th><th>Daily limit</th><th>Subscription</th><th>Joined</th></tr></thead><tbody id="usersTable"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody></table></div><div class="footerline"><span id="usersTotal">—</span><span>Latest accounts first · max 100 per request</span></div></section></section>
   <section id="jobsView" class="hidden"><section class="panel"><div class="panel-head"><h2>Generation jobs</h2><small id="jobsTotal">Loading…</small></div><div class="table-wrap"><table><thead><tr><th>Job ID</th><th>User</th><th>Topic</th><th>Status</th><th>Created</th><th>Error</th></tr></thead><tbody id="jobsTable"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody></table></div></section></section>
   <section id="paymentsView" class="hidden"><section class="panel"><div class="panel-head"><h2>Payment ledger</h2><small id="paymentsTotal">Loading…</small></div><div class="table-wrap"><table><thead><tr><th>Payment ID</th><th>User</th><th>Plan</th><th>Amount</th><th>Provider</th><th>Status</th><th>Created</th></tr></thead><tbody id="paymentsTable"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody></table></div></section></section>
-  <div class="footerline"><span>Clip Pirate.ai · Admin</span><span id="lastUpdated">Not refreshed yet</span></div>
+  <section id="supportView" class="hidden">
+
+  <section class="panel">
+
+    <div class="panel-head">
+      <h2>Support Conversations</h2>
+      <small id="supportTotal">Loading...</small>
+    </div>
+
+    <div class="table-wrap">
+
+      <table>
+
+        <thead>
+          <tr>
+            <th>Subject</th>
+            <th>User</th>
+            <th>Status</th>
+            <th>Messages</th>
+            <th>Last Updated</th>
+          </tr>
+        </thead>
+
+        <tbody id="supportTable">
+          <tr>
+            <td colspan="5" class="empty">
+              Loading...
+            </td>
+          </tr>
+        </tbody>
+
+      </table>
+
+    </div>
+
+  </section>
+ </section>
+  <p class="footerline"><span id="lastUpdated">—</span><span>Powered by Clip Pirate.ai</span></p>
 </main>
 </div>
 <script>
 const $ = id => document.getElementById(id);
-const state = {view:'overview', userQuery:'', overview:null};
+
+const state = {
+    view: 'overview',
+    userQuery: '',
+    overview: null
+};
+
 const pageMeta = {
- overview:['Overview','Live health and activity from your Clip Pirate database.'],
- users:['Users','Search registered accounts and inspect verification and subscription status.'],
- jobs:['Video jobs','Review generation status and recent errors.'],
- payments:['Payments','Review payment records and successful totals by currency.']
+    overview: [
+        'Overview',
+        'Live health and activity from your Clip Pirate database.'
+    ],
+    users: [
+        'Users',
+        'Search registered accounts and inspect verification and subscription status.'
+    ],
+    jobs: [
+        'Video jobs',
+        'Review generation status and recent errors.'
+    ],
+    payments: [
+        'Payments',
+        'Review payment records and successful totals by currency.'
+    ],
+    support: [
+        'Support',
+        'Manage customer conversations and support replies.'
+    ]
 };
 function el(tag, text, cls='') { const node=document.createElement(tag); if(text !== undefined && text !== null) node.textContent=String(text); if(cls) node.className=cls; return node; }
 function td(row, text, cls='') { const cell=el('td',text,cls); row.appendChild(cell); return cell; }
@@ -69,7 +129,102 @@ async function loadOverview(){const d=await api('/admin/api/overview');state.ove
 async function loadUsers(){const params=new URLSearchParams({q:state.userQuery,limit:'100',offset:'0'});const d=await api('/admin/api/users?'+params);const body=$('usersTable');body.replaceChildren();$('usersTotal').textContent=`${fmtNum(d.total)} user(s)`;if(!d.users.length){const r=el('tr');const c=el('td','No matching users.','empty');c.colSpan=8;r.appendChild(c);body.appendChild(r);return;}for(const u of d.users){const r=el('tr');td(r,u.name);td(r,u.email);const v=td(r,'');v.appendChild(pill(u.email_verified?'Verified':'Unverified',u.email_verified?'good':'warn'));td(r,u.plan);td(r,`${fmtNum(u.credits)} / ${fmtNum(u.monthly_limit)}`);td(r,fmtNum(u.daily_generation_limit));const s=td(r,'');s.appendChild(pill(u.subscription_status||'unknown',statusKind(u.subscription_status)));td(r,fmtDate(u.created_at));body.appendChild(r);}}
 async function loadJobs(){const d=await api('/admin/api/jobs?limit=100');const body=$('jobsTable');body.replaceChildren();$('jobsTotal').textContent=`${fmtNum(d.total)} job(s)`;if(!d.jobs.length){const r=el('tr');const c=el('td','No generation jobs recorded.','empty');c.colSpan=6;r.appendChild(c);body.appendChild(r);return;}for(const j of d.jobs){const r=el('tr');td(r,String(j.id||'').slice(0,12)+'…');td(r,`${j.user_name||'Unknown'} · ${j.email||''}`);td(r,j.topic||'—');const s=td(r,'');s.appendChild(pill(j.status,statusKind(j.status)));td(r,fmtDate(j.created_at));td(r,j.error||'—');body.appendChild(r);}}
 async function loadPayments(){const d=await api('/admin/api/payments?limit=100');const body=$('paymentsTable');body.replaceChildren();$('paymentsTotal').textContent=`${fmtNum(d.total)} payment(s)`;if(!d.payments.length){const r=el('tr');const c=el('td','No payment records yet.','empty');c.colSpan=7;r.appendChild(c);body.appendChild(r);return;}for(const p of d.payments){const r=el('tr');td(r,String(p.id||'').slice(0,12)+'…');td(r,`${p.user_name||'Unknown'} · ${p.email||''}`);td(r,p.plan);td(r,`${p.currency||''} ${Number(p.amount||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`);td(r,p.provider);const s=td(r,'');s.appendChild(pill(p.status,statusKind(p.status)));td(r,fmtDate(p.created_at));body.appendChild(r);}}
-async function loadCurrent(){clearError();$('refreshBtn').disabled=true;try{if(state.view==='overview')await loadOverview();else if(state.view==='users')await loadUsers();else if(state.view==='jobs')await loadJobs();else if(state.view==='payments')await loadPayments();}catch(e){showError(e.message||'Could not load admin data.');}finally{$('refreshBtn').disabled=false;}}
+async function loadSupport(){
+
+    const data =
+        await api('/admin/api/conversations');
+
+    const body =
+        $('supportTable');
+
+    body.replaceChildren();
+
+    const conversations =
+        data.conversations || [];
+
+    $('supportTotal').textContent =
+        `${fmtNum(conversations.length)} conversation(s)`;
+
+    if(!conversations.length){
+
+        const r = el('tr');
+        const c = el(
+            'td',
+            'No support conversations.',
+            'empty'
+        );
+
+        c.colSpan = 5;
+
+        r.appendChild(c);
+
+        body.appendChild(r);
+
+        return;
+    }
+
+    for(const convo of conversations){
+
+        const r = el('tr');
+
+        td(
+            r,
+            convo.subject || 'No subject'
+        );
+
+        td(
+            r,
+            convo.user_name ||
+            convo.user_id ||
+            'Unknown'
+        );
+
+        const s = td(r,'');
+
+        s.appendChild(
+            pill(
+                convo.status || 'open',
+                statusKind(
+                    convo.status
+                )
+            )
+        );
+
+        td(
+            r,
+            String(
+                convo.message_count || 0
+            )
+        );
+
+        td(
+            r,
+            fmtDate(
+                convo.updated_at
+            )
+        );
+
+        body.appendChild(r);
+    }
+}
+async function loadCurrent(){clearError();$('refreshBtn').disabled=true;try{
+if(state.view==='overview')
+    await loadOverview();
+
+else if(state.view==='users')
+    await loadUsers();
+
+else if(state.view==='jobs')
+    await loadJobs();
+
+else if(state.view==='payments')
+    await loadPayments();
+
+else if(state.view==='support')
+    await loadSupport();
+}
+  catch(e){showError(e.message||'Could not load admin data.');}
+finally{$('refreshBtn').disabled=false;}}
 document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
 document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.goto)));
 $('refreshBtn').addEventListener('click',loadCurrent);

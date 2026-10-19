@@ -32,6 +32,25 @@
 .sx-table td{padding:11px 10px 11px 0;border-top:1px solid var(--border);white-space:nowrap}\
 .sx-empty{color:var(--muted);font-size:13px;padding:14px 0}\
 .sx-h{font-size:15px;margin:22px 0 4px}\
+.sx-dot{display:inline-block;min-width:18px;height:18px;line-height:18px;border-radius:9px;background:var(--danger);color:#fff;font-size:11px;font-weight:700;text-align:center;margin-left:8px;padding:0 5px;vertical-align:middle}\
+.sx-dot.hidden{display:none}\
+.sx-top{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin:6px 0 14px}\
+.sx-conv{display:block;width:100%;text-align:left;background:var(--panel-2);border:1px solid var(--border);border-radius:12px;padding:14px 16px;margin-bottom:10px;color:var(--text);cursor:pointer}\
+.sx-conv:hover{border-color:var(--primary)}\
+.sx-conv-top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:6px}\
+.sx-conv-subject{font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\
+.sx-conv-prev{color:var(--muted);font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}\
+.sx-conv-when{color:var(--muted);font-size:11px;margin-top:6px}\
+.sx-chip{font-size:11px;padding:4px 9px;border-radius:20px;background:rgba(124,92,255,.12);color:#b7aaff;white-space:nowrap}\
+.sx-chip.pending{background:rgba(49,196,141,.10);color:#63dcae}\
+.sx-chip.resolved,.sx-chip.closed{background:rgba(146,153,168,.12);color:#9299a8}\
+.sx-msgs{display:flex;flex-direction:column;gap:10px;max-height:420px;overflow-y:auto;padding:4px 2px 4px 0;margin:10px 0 14px}\
+.sx-bubble{max-width:82%;padding:10px 13px;border-radius:12px;font-size:14px;line-height:1.5;white-space:pre-wrap;word-wrap:break-word;overflow-wrap:anywhere}\
+.sx-bubble.user{align-self:flex-end;background:rgba(124,92,255,.18);border:1px solid rgba(124,92,255,.35)}\
+.sx-bubble.admin{align-self:flex-start;background:var(--panel-2);border:1px solid var(--border)}\
+.sx-bubble small{display:block;color:var(--muted);font-size:11px;margin-top:6px}\
+.sx-chat-form{display:grid;gap:10px}\
+.sx-chat-form textarea{min-height:90px}\
 ";
 
     function esc(value) {
@@ -499,6 +518,258 @@
         });
     }
 
+    /* ----------------------------------------------------
+       7. HELP: CHAT WITH SUPPORT
+    ---------------------------------------------------- */
+
+    var help = { view: "list", id: null, shownId: null, count: 0, timer: null };
+
+    var STATUS_LABEL = { open: "Open", pending: "Replied", resolved: "Resolved", closed: "Closed" };
+
+    function whenText(iso) {
+        var d = new Date(iso);
+        if (isNaN(d.getTime())) { return ""; }
+        return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    }
+
+    function chip(status) {
+        return '<span class="sx-chip ' + esc(status) + '">' + esc(STATUS_LABEL[status] || status) + '</span>';
+    }
+
+    function addHelpTab() {
+        var nav = document.querySelector(".settings-nav");
+        var card = document.querySelector("#page-settings .form-card");
+        if (!nav || !card || $("settings-help")) { return; }
+
+        var button = document.createElement("button");
+        button.id = "sxHelpButton";
+        button.innerHTML = 'Help <span class="sx-dot hidden" id="sxHelpDot">0</span>';
+        button.setAttribute("onclick", "showSettingsPanel('help', this)");
+        nav.appendChild(button);
+
+        var panel = document.createElement("div");
+        panel.id = "settings-help";
+        panel.className = "settings-panel";
+        panel.innerHTML = "<h2>Help</h2><p>Questions about your account, billing or videos? Message us here and we will reply in the app.</p>" +
+            '<div id="helpBody"><div class="sx-empty">Loading...</div></div>';
+        card.appendChild(panel);
+    }
+
+    function setUnread(count) {
+        help.count = count;
+
+        var dot = $("sxHelpDot");
+        if (dot) {
+            dot.textContent = count > 99 ? "99+" : String(count);
+            dot.classList.toggle("hidden", !count);
+        }
+
+        // A small marker on the sidebar's Settings button too.
+        var label = document.querySelector('.nav-button[data-page="settings"] .nav-label');
+        if (label) {
+            var side = $("sxSideDot");
+            if (!side) {
+                side = document.createElement("span");
+                side.id = "sxSideDot";
+                side.className = "sx-dot hidden";
+                label.appendChild(side);
+            }
+            side.textContent = count > 99 ? "99+" : String(count);
+            side.classList.toggle("hidden", !count);
+        }
+    }
+
+    async function refreshUnread() {
+        if (typeof currentUser === "undefined" || !currentUser || document.hidden) { return; }
+        try {
+            var data = await window.api("/support/unread");
+            setUnread(Number(data.count) || 0);
+        } catch (error) { /* stay quiet */ }
+    }
+
+    function helpActive() {
+        var panel = $("settings-help");
+        return !!panel && panel.classList.contains("active");
+    }
+
+    async function helpList() {
+        help.view = "list";
+        help.id = null;
+        help.shownId = null;
+
+        var body = $("helpBody");
+        if (!body) { return; }
+
+        try {
+            var data = await window.api("/support/conversations");
+            var items = data.conversations || [];
+
+            var html = '<div class="sx-top"><h3 class="sx-h" style="margin:0">Your messages</h3>' +
+                '<button class="create-btn" id="helpNewBtn" type="button">New message</button></div>';
+
+            if (!items.length) {
+                html += '<div class="sx-empty">No messages yet. Ask us anything about your account, billing or videos.</div>';
+            } else {
+                html += items.map(function (c) {
+                    return '<button class="sx-conv" type="button" data-id="' + esc(c.id) + '">' +
+                        '<div class="sx-conv-top"><span class="sx-conv-subject">' + esc(c.subject) +
+                        (c.unread ? ' <span class="sx-dot">' + c.unread + '</span>' : "") + '</span>' + chip(c.status) + '</div>' +
+                        '<div class="sx-conv-prev">' + (c.last_sender === "admin" ? "Support: " : "You: ") + esc(c.preview) + '</div>' +
+                        '<div class="sx-conv-when">' + esc(whenText(c.last_at)) + '</div></button>';
+                }).join("");
+            }
+
+            body.innerHTML = html;
+
+            $("helpNewBtn").addEventListener("click", helpNew);
+            Array.prototype.forEach.call(body.querySelectorAll(".sx-conv"), function (el) {
+                el.addEventListener("click", function () { helpThread(el.getAttribute("data-id")); });
+            });
+
+            setUnread(items.reduce(function (sum, c) { return sum + (c.unread || 0); }, 0));
+        } catch (error) {
+            body.innerHTML = '<div class="sx-empty">' + esc(error.message || "Could not load your messages.") + '</div>';
+        }
+    }
+
+    function helpNew() {
+        help.view = "new";
+        help.shownId = null;
+
+        $("helpBody").innerHTML =
+            '<button class="sx-link" id="helpBack" type="button">&larr; Back to messages</button>' +
+            '<form id="helpNewForm" class="sx-chat-form" style="margin-top:14px;max-width:560px" autocomplete="off">' +
+            '<div><label class="sx-lbl" for="helpSubject" style="font-size:12px;color:var(--muted)">Subject</label>' +
+            '<input id="helpSubject" maxlength="80" placeholder="For example: I was charged but my plan did not change" required></div>' +
+            '<div><label for="helpText" style="font-size:12px;color:var(--muted)">Message</label>' +
+            '<textarea id="helpText" maxlength="2000" placeholder="Tell us what happened. Include the video topic or payment date if it helps." required></textarea></div>' +
+            '<div class="sx-actions"><button class="create-btn" type="submit" id="helpSend">Send message</button></div>' +
+            '<div class="sx-msg" id="helpMsg" role="status"></div></form>';
+
+        $("helpBack").addEventListener("click", helpList);
+
+        $("helpNewForm").addEventListener("submit", async function (event) {
+            event.preventDefault();
+            var btn = $("helpSend");
+            btn.disabled = true;
+            say($("helpMsg"), "");
+            try {
+                var result = await post("/support/conversations", {
+                    subject: $("helpSubject").value,
+                    message: $("helpText").value
+                });
+                toast("Message sent. We will reply here.");
+                helpThread(result.id);
+            } catch (error) {
+                say($("helpMsg"), error.message || "Could not send your message.", false);
+                btn.disabled = false;
+            }
+        });
+
+        $("helpSubject").focus();
+    }
+
+    function drawMessages(messages) {
+        var box = $("helpMsgs");
+        if (!box) { return; }
+
+        var stick = box.scrollHeight - box.scrollTop - box.clientHeight < 60;
+        var before = box.children.length;
+
+        box.textContent = "";
+
+        messages.forEach(function (m) {
+            var bubble = document.createElement("div");
+            bubble.className = "sx-bubble " + (m.from === "admin" ? "admin" : "user");
+            bubble.textContent = m.message;
+
+            var meta = document.createElement("small");
+            meta.textContent = (m.from === "admin" ? "Clip Pirate support" : "You") + " · " + whenText(m.created_at);
+            bubble.appendChild(meta);
+
+            box.appendChild(bubble);
+        });
+
+        if (stick || !before) { box.scrollTop = box.scrollHeight; }
+    }
+
+    async function helpThread(id, quiet) {
+        var body = $("helpBody");
+        if (!body) { return; }
+
+        help.view = "thread";
+        help.id = id;
+
+        try {
+            var data = await window.api("/support/conversations/" + encodeURIComponent(id));
+
+            if (help.shownId !== id) {
+                help.shownId = id;
+                var closed = data.status === "closed";
+
+                body.innerHTML =
+                    '<button class="sx-link" id="helpBack" type="button">&larr; Back to messages</button>' +
+                    '<div class="sx-top" style="margin-top:12px"><h3 class="sx-h" style="margin:0" id="helpSubjectTitle"></h3><span id="helpStatus"></span></div>' +
+                    '<div class="sx-msgs" id="helpMsgs"></div>' +
+                    (closed
+                        ? '<div class="sx-empty" id="helpClosed">This conversation is closed. Start a new message if you need more help.</div>'
+                        : '<form id="helpReplyForm" class="sx-chat-form" autocomplete="off">' +
+                          '<textarea id="helpReply" maxlength="2000" placeholder="Write a reply..." required></textarea>' +
+                          '<div class="sx-actions"><button class="create-btn" type="submit" id="helpReplyBtn">Send</button></div>' +
+                          '<div class="sx-msg" id="helpReplyMsg" role="status"></div></form>');
+
+                $("helpBack").addEventListener("click", helpList);
+
+                var form = $("helpReplyForm");
+                if (form) {
+                    form.addEventListener("submit", async function (event) {
+                        event.preventDefault();
+                        var btn = $("helpReplyBtn");
+                        var text = $("helpReply");
+                        btn.disabled = true;
+                        say($("helpReplyMsg"), "");
+                        try {
+                            await post("/support/conversations/" + encodeURIComponent(id) + "/messages", { message: text.value });
+                            text.value = "";
+                            help.shownId = null;
+                            await helpThread(id, true);
+                        } catch (error) {
+                            say($("helpReplyMsg"), error.message || "Could not send your reply.", false);
+                        }
+                        btn.disabled = false;
+                    });
+                }
+            }
+
+            $("helpSubjectTitle").textContent = data.subject;
+            $("helpStatus").innerHTML = chip(data.status);
+            drawMessages(data.messages || []);
+            refreshUnread();
+        } catch (error) {
+            if (!quiet) {
+                body.innerHTML = '<button class="sx-link" id="helpBack" type="button">&larr; Back to messages</button>' +
+                    '<div class="sx-empty">' + esc(error.message || "Could not open this conversation.") + '</div>';
+                $("helpBack").addEventListener("click", helpList);
+            }
+        }
+    }
+
+    function openHelp() {
+        helpList();
+
+        if (help.timer) { clearInterval(help.timer); }
+
+        // New replies appear on their own while the Help tab is open.
+        help.timer = setInterval(function () {
+            if (!helpActive() || document.hidden) {
+                if (!helpActive()) { clearInterval(help.timer); help.timer = null; }
+                return;
+            }
+            if (help.view === "thread" && help.id) { helpThread(help.id, true); }
+            else if (help.view === "list") { helpList(); }
+        }, 15000);
+    }
+
     function wrap(name, after, before) {
         var original = window[name];
         if (typeof original !== "function") { return; }
@@ -551,6 +822,7 @@
         addNarrationPreference();
         addReminderSwitch();
         addDataSection();
+        addHelpTab();
         installPreferenceHooks();
 
         if (typeof window.showSettingsPanel === "function") {
@@ -559,10 +831,14 @@
                 var result = base.apply(this, arguments);
                 if (name === "billing") { loadBilling(); }
                 if (name === "preferences") { loadReminderSwitch(); }
+                if (name === "help") { openHelp(); }
                 return result;
             };
         }
     }
+
+    setTimeout(refreshUnread, 2500);
+    setInterval(refreshUnread, 60000);
 
     if (document.readyState === "loading") {
         document.addEventListener("DOMContentLoaded", init);
