@@ -370,6 +370,52 @@
         syncNarrationSelect();
     }
 
+    /* ----------------------------------------------------
+       5. EMAIL REMINDERS SWITCH (saves immediately)
+    ---------------------------------------------------- */
+
+    function addReminderSwitch() {
+        var panel = $("settings-preferences");
+        if (!panel || $("prefReminders")) { return; }
+
+        var saveButton = panel.querySelector(".save-settings");
+
+        var holder = document.createElement("div");
+        holder.innerHTML = row("Email Reminders", "Get an email when your paid plan is about to end or your credits run low.",
+            '<div class="setting-control"><label class="checkbox-row"><input id="prefReminders" type="checkbox" checked> Enabled</label>' +
+            '<div class="sx-msg" id="prefRemindersMsg" role="status"></div></div>');
+
+        if (saveButton) {
+            panel.insertBefore(holder.firstChild, saveButton);
+        } else {
+            panel.appendChild(holder.firstChild);
+        }
+
+        $("prefReminders").addEventListener("change", async function () {
+            var box = $("prefReminders");
+            var msg = $("prefRemindersMsg");
+            var wanted = box.checked;
+            box.disabled = true;
+            try {
+                await post("/settings/reminders", { enabled: wanted });
+                say(msg, wanted ? "Reminders on." : "Reminders off.", true);
+            } catch (error) {
+                box.checked = !wanted;
+                say(msg, error.message || "Could not save that.", false);
+            }
+            box.disabled = false;
+        });
+    }
+
+    async function loadReminderSwitch() {
+        var box = $("prefReminders");
+        if (!box) { return; }
+        try {
+            var data = await window.api("/settings/reminders");
+            box.checked = !!data.enabled;
+        } catch (error) { /* leave the default */ }
+    }
+
     function wrap(name, after, before) {
         var original = window[name];
         if (typeof original !== "function") { return; }
@@ -420,6 +466,7 @@
         addSecurity();
         addNameEditor();
         addNarrationPreference();
+        addReminderSwitch();
         installPreferenceHooks();
 
         if (typeof window.showSettingsPanel === "function") {
@@ -427,6 +474,7 @@
             window.showSettingsPanel = function (name) {
                 var result = base.apply(this, arguments);
                 if (name === "billing") { loadBilling(); }
+                if (name === "preferences") { loadReminderSwitch(); }
                 return result;
             };
         }

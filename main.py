@@ -39,6 +39,7 @@ from script_quality_control import quality_check_script
 from quota_monitor import monitor_loop
 from analytics_service import build_analytics, set_project_template
 from settings_service import register_settings_routes
+from reminders_service import register_reminder_routes
 
 from jobs import (
     create_job,
@@ -2038,3 +2039,4 @@ def support_stats(
             count_open_conversations()
     }
 register_settings_routes(app, current_user, limiter, SESSION_COOKIE, send_email)
+register_reminder_routes(app, current_user, limiter, send_email)
