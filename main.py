@@ -40,6 +40,7 @@ from quota_monitor import monitor_loop
 from analytics_service import build_analytics, set_project_template
 from settings_service import register_settings_routes
 from reminders_service import register_reminder_routes
+from account_service import register_account_routes
 
 from jobs import (
     create_job,
@@ -2040,3 +2041,4 @@ def support_stats(
     }
 register_settings_routes(app, current_user, limiter, SESSION_COOKIE, send_email)
 register_reminder_routes(app, current_user, limiter, send_email)
+register_account_routes(app, current_user, limiter, SESSION_COOKIE, send_email, delete_video_file)

@@ -416,6 +416,89 @@
         } catch (error) { /* leave the default */ }
     }
 
+    /* ----------------------------------------------------
+       6. YOUR DATA: DOWNLOAD + DELETE ACCOUNT
+    ---------------------------------------------------- */
+
+    function addDataSection() {
+        var panel = $("settings-account");
+        if (!panel || $("sxExport")) { return; }
+
+        var wrap = document.createElement("div");
+        wrap.innerHTML =
+            '<h3 class="sx-h" style="margin-top:36px">Your data</h3>' +
+            row("Download my data", "A JSON file with your account, payments and every project's topic, script and settings. Video files are not included.",
+                '<div class="sx-edit"><button class="secondary-btn" id="sxExport" type="button">Download my data</button>' +
+                '<div class="sx-msg" id="sxExportMsg" role="status"></div></div>') +
+            row("Delete account", "Permanently deletes your account, projects and videos. This cannot be undone. Paid plans must have ended first.",
+                '<div class="sx-edit"><button class="secondary-btn sx-danger" id="sxDeleteOpen" type="button">Delete account</button>' +
+                '<form id="sxDeleteForm" class="sx-form hidden" autocomplete="off">' +
+                '<div><label for="sxDelPw">Your password</label><input id="sxDelPw" type="password" autocomplete="current-password" required></div>' +
+                '<div><label for="sxDelConfirm">Type DELETE to confirm</label><input id="sxDelConfirm" type="text" autocomplete="off" required></div>' +
+                '<div class="sx-actions"><button class="secondary-btn sx-danger" type="submit" id="sxDelBtn">Delete my account forever</button>' +
+                '<button class="sx-link" type="button" id="sxDelCancel">Cancel</button></div>' +
+                '<div class="sx-msg" id="sxDelMsg" role="status"></div></form></div>');
+
+        while (wrap.firstChild) { panel.appendChild(wrap.firstChild); }
+
+        $("sxExport").addEventListener("click", async function () {
+            var btn = $("sxExport");
+            var msg = $("sxExportMsg");
+            btn.disabled = true;
+            say(msg, "Preparing your file...", true);
+            try {
+                var data = await window.api("/settings/export");
+                var blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+                var link = document.createElement("a");
+                link.href = URL.createObjectURL(blob);
+                link.download = "clip-pirate-data-" + new Date().toISOString().slice(0, 10) + ".json";
+                document.body.appendChild(link);
+                link.click();
+                link.remove();
+                setTimeout(function () { URL.revokeObjectURL(link.href); }, 2000);
+                say(msg, "Downloaded.", true);
+            } catch (error) {
+                say(msg, error.message || "Could not prepare your data.", false);
+            }
+            btn.disabled = false;
+        });
+
+        var form = $("sxDeleteForm");
+        var open = $("sxDeleteOpen");
+
+        open.addEventListener("click", function () {
+            form.classList.remove("hidden");
+            open.classList.add("hidden");
+            $("sxDelPw").focus();
+        });
+
+        $("sxDelCancel").addEventListener("click", function () {
+            form.reset();
+            say($("sxDelMsg"), "");
+            form.classList.add("hidden");
+            open.classList.remove("hidden");
+        });
+
+        form.addEventListener("submit", async function (event) {
+            event.preventDefault();
+            var msg = $("sxDelMsg");
+            var btn = $("sxDelBtn");
+            btn.disabled = true;
+            say(msg, "");
+            try {
+                await post("/settings/delete-account", {
+                    password: $("sxDelPw").value,
+                    confirm: $("sxDelConfirm").value.trim()
+                });
+                toast("Your account was deleted.");
+                setTimeout(function () { window.location.href = "/"; }, 900);
+            } catch (error) {
+                say(msg, error.message || "Could not delete the account.", false);
+                btn.disabled = false;
+            }
+        });
+    }
+
     function wrap(name, after, before) {
         var original = window[name];
         if (typeof original !== "function") { return; }
@@ -467,6 +550,7 @@
         addNameEditor();
         addNarrationPreference();
         addReminderSwitch();
+        addDataSection();
         installPreferenceHooks();
 
         if (typeof window.showSettingsPanel === "function") {
