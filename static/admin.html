@@ -1,236 +1,1232 @@
 <!doctype html>
 <html lang="en">
+
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Admin Control Center · Clip Pirate.ai</title>
-<style>
-:root{color-scheme:dark;--bg:#090b11;--panel:#11151e;--panel2:#171c27;--line:#272e3d;--text:#f3f5fb;--muted:#929bad;--purple:#8b72ff;--cyan:#55d9ed;--green:#47d6a0;--amber:#f4c66a;--red:#ff7185}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at 5% 0,rgba(113,86,255,.17),transparent 28rem),var(--bg);color:var(--text);font:14px/1.5 Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif}button,input{font:inherit}button{cursor:pointer}.shell{display:grid;grid-template-columns:245px minmax(0,1fr);min-height:100vh}.sidebar{padding:24px 16px;border-right:1px solid var(--line);background:rgba(12,15,22,.88);display:flex;flex-direction:column;gap:28px}.brand{display:flex;align-items:center;gap:12px;padding:0 8px}.mark{width:42px;height:42px;border-radius:13px;display:grid;place-items:center;background:linear-gradient(135deg,#8b72ff,#42d9ed);color:#080a10;font-size:20px;font-weight:900}.brand strong{display:block;font-size:16px;letter-spacing:.02em}.brand small{color:var(--muted);font-size:10px;letter-spacing:.14em}.nav{display:grid;gap:7px}.nav button{border:1px solid transparent;border-radius:10px;text-align:left;padding:11px 12px;background:transparent;color:var(--muted);display:flex;align-items:center;gap:10px}.nav button.active,.nav button:hover{color:var(--text);background:#1b2030;border-color:#33394c}.nav .ico{width:22px;text-align:center}.side-note{margin-top:auto;border:1px solid var(--line);border-radius:12px;padding:13px;color:var(--muted);font-size:12px}.side-note b{display:block;color:var(--green);margin-bottom:5px}.main{min-width:0;padding:26px clamp(16px,3vw,38px) 40px}.top{display:flex;align-items:center;justify-content:space-between;gap:14px;margin-bottom:26px}.eyebrow{color:var(--cyan);font-size:10px;letter-spacing:.16em;text-transform:uppercase;font-weight:800}.top h1{font-size:clamp(24px,3vw,34px);letter-spacing:-.04em;margin:4px 0}.sub{color:var(--muted);margin:0}.actions{display:flex;gap:8px;align-items:center}.btn{border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:10px;padding:9px 13px}.btn.primary{background:var(--purple);border-color:var(--purple);color:white;font-weight:700}.btn:disabled{opacity:.5;cursor:wait}.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px;margin-bottom:18px}.stat,.panel{border:1px solid var(--line);background:linear-gradient(150deg,rgba(24,29,41,.96),rgba(15,18,26,.96));border-radius:16px}.stat{padding:17px;min-height:136px}.stat-head{display:flex;justify-content:space-between;align-items:center;color:var(--muted);font-size:12px}.stat-icon{display:grid;place-items:center;width:33px;height:33px;border-radius:10px;background:#24233a;color:var(--purple);font-size:17px}.stat strong{display:block;font-size:30px;letter-spacing:-.04em;margin:13px 0 2px}.stat small{color:var(--muted)}.grid2{display:grid;grid-template-columns:minmax(0,1.25fr) minmax(280px,.75fr);gap:16px}.panel{padding:18px;min-width:0;margin-bottom:16px}.panel-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:15px}.panel h2{font-size:15px;margin:0}.panel-head small{color:var(--muted)}.bars{display:grid;gap:13px}.bar-row{display:grid;grid-template-columns:100px minmax(0,1fr) 35px;gap:10px;align-items:center;color:var(--muted);font-size:12px}.track{height:8px;background:#252a37;border-radius:999px;overflow:hidden}.fill{height:100%;border-radius:999px;background:linear-gradient(90deg,var(--purple),var(--cyan));width:0}.revenue-list{display:grid;gap:10px}.revenue{display:flex;justify-content:space-between;gap:10px;padding:12px;background:var(--panel2);border:1px solid var(--line);border-radius:10px}.revenue span{color:var(--muted)}.tabs{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:14px}.tab{padding:8px 12px;border:1px solid var(--line);background:var(--panel);color:var(--muted);border-radius:9px}.tab.active{background:#27213f;border-color:#5745a5;color:#fff}.search{background:var(--panel);border:1px solid var(--line);color:var(--text);padding:10px 12px;border-radius:10px;min-width:min(100%,280px);outline:none}.table-wrap{overflow:auto;border:1px solid var(--line);border-radius:12px}table{width:100%;border-collapse:collapse;min-width:720px}th,td{padding:12px 13px;text-align:left;border-bottom:1px solid var(--line);white-space:nowrap;font-size:12px}th{color:var(--muted);font-size:10px;text-transform:uppercase;letter-spacing:.08em;background:#121620}tbody tr:hover{background:rgba(255,255,255,.025)}tbody tr:last-child td{border-bottom:0}.pill{display:inline-flex;align-items:center;border-radius:999px;padding:3px 8px;background:#242a37;color:#d5d9e5;font-size:11px}.pill.good{background:#143b30;color:#75e7bd}.pill.warn{background:#3a3020;color:#ffd58b}.pill.bad{background:#3b2029;color:#ff9eaa}.muted{color:var(--muted)}.empty{padding:28px;text-align:center;color:var(--muted)}.error{display:none;background:#3b2029;color:#ffb3bc;padding:12px;border-radius:10px;margin-bottom:14px}.error.show{display:block}.loading{color:var(--muted);padding:20px;text-align:center}.footerline{display:flex;justify-content:space-between;gap:12px;align-items:center;color:var(--muted);font-size:12px;margin-top:12px}.hidden{display:none!important}@media(max-width:1050px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}.grid2{grid-template-columns:1fr}}@media(max-width:700px){.shell{grid-template-columns:1fr}.sidebar{padding:14px;border-right:0;border-bottom:1px solid var(--line);gap:13px}.brand{padding:0 4px}.nav{grid-template-columns:repeat(4,minmax(0,1fr));gap:5px}.nav button{justify-content:center;padding:9px 5px;font-size:11px;flex-direction:column;gap:2px}.side-note{display:none}.main{padding:20px 13px 30px}.top{align-items:flex-start;flex-direction:column}.actions{width:100%}.stats{gap:9px}.stat{padding:13px;min-height:120px}.stat strong{font-size:25px}.bar-row{grid-template-columns:85px minmax(0,1fr) 25px}.panel{padding:13px}.search{width:100%;min-width:0}}
-</style>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Admin Control Center · Clip Pirate.ai</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #090b11;
+      --panel: #11151e;
+      --panel2: #171c27;
+      --line: #272e3d;
+      --text: #f3f5fb;
+      --muted: #929bad;
+      --purple: #8b72ff;
+      --cyan: #55d9ed;
+      --green: #47d6a0;
+      --amber: #f4c66a;
+      --red: #ff7185
+    }
+
+    * {
+      box-sizing: border-box
+    }
+
+    body {
+      margin: 0;
+      background: radial-gradient(circle at 5% 0, rgba(113, 86, 255, .17), transparent 28rem), var(--bg);
+      color: var(--text);
+      font: 14px/1.5 Inter, ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif
+    }
+
+    button,
+    input {
+      font: inherit
+    }
+
+    button {
+      cursor: pointer
+    }
+
+    .shell {
+      display: grid;
+      grid-template-columns: 245px minmax(0, 1fr);
+      min-height: 100vh
+    }
+
+    .sidebar {
+      padding: 24px 16px;
+      border-right: 1px solid var(--line);
+      background: rgba(12, 15, 22, .88);
+      display: flex;
+      flex-direction: column;
+      gap: 28px
+    }
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 0 8px
+    }
+
+    .mark {
+      width: 42px;
+      height: 42px;
+      border-radius: 13px;
+      display: grid;
+      place-items: center;
+      background: linear-gradient(135deg, #8b72ff, #42d9ed);
+      color: #080a10;
+      font-size: 20px;
+      font-weight: 900
+    }
+
+    .brand strong {
+      display: block;
+      font-size: 16px;
+      letter-spacing: .02em
+    }
+
+    .brand small {
+      color: var(--muted);
+      font-size: 10px;
+      letter-spacing: .14em
+    }
+
+    .nav {
+      display: grid;
+      gap: 7px
+    }
+
+    .nav button {
+      border: 1px solid transparent;
+      border-radius: 10px;
+      text-align: left;
+      padding: 11px 12px;
+      background: transparent;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 10px
+    }
+
+    .nav button.active,
+    .nav button:hover {
+      color: var(--text);
+      background: #1b2030;
+      border-color: #33394c
+    }
+
+    .nav .ico {
+      width: 22px;
+      text-align: center
+    }
+
+    .side-note {
+      margin-top: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 13px;
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    .side-note b {
+      display: block;
+      color: var(--green);
+      margin-bottom: 5px
+    }
+
+    .main {
+      min-width: 0;
+      padding: 26px clamp(16px, 3vw, 38px) 40px
+    }
+
+    .top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 26px
+    }
+
+    .eyebrow {
+      color: var(--cyan);
+      font-size: 10px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      font-weight: 800
+    }
+
+    .top h1 {
+      font-size: clamp(24px, 3vw, 34px);
+      letter-spacing: -.04em;
+      margin: 4px 0
+    }
+
+    .sub {
+      color: var(--muted);
+      margin: 0
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      align-items: center
+    }
+
+    .btn {
+      border: 1px solid var(--line);
+      background: var(--panel2);
+      color: var(--text);
+      border-radius: 10px;
+      padding: 9px 13px
+    }
+
+    .btn.primary {
+      background: var(--purple);
+      border-color: var(--purple);
+      color: white;
+      font-weight: 700
+    }
+
+    .btn:disabled {
+      opacity: .5;
+      cursor: wait
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 18px
+    }
+
+    .stat,
+    .panel {
+      border: 1px solid var(--line);
+      background: linear-gradient(150deg, rgba(24, 29, 41, .96), rgba(15, 18, 26, .96));
+      border-radius: 16px
+    }
+
+    .stat {
+      padding: 17px;
+      min-height: 136px
+    }
+
+    .stat-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    .stat-icon {
+      display: grid;
+      place-items: center;
+      width: 33px;
+      height: 33px;
+      border-radius: 10px;
+      background: #24233a;
+      color: var(--purple);
+      font-size: 17px
+    }
+
+    .stat strong {
+      display: block;
+      font-size: 30px;
+      letter-spacing: -.04em;
+      margin: 13px 0 2px
+    }
+
+    .stat small {
+      color: var(--muted)
+    }
+
+    .grid2 {
+      display: grid;
+      grid-template-columns: minmax(0, 1.25fr) minmax(280px, .75fr);
+      gap: 16px
+    }
+
+    .panel {
+      padding: 18px;
+      min-width: 0;
+      margin-bottom: 16px
+    }
+
+    .panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 15px
+    }
+
+    .panel h2 {
+      font-size: 15px;
+      margin: 0
+    }
+
+    .panel-head small {
+      color: var(--muted)
+    }
+
+    .bars {
+      display: grid;
+      gap: 13px
+    }
+
+    .bar-row {
+      display: grid;
+      grid-template-columns: 100px minmax(0, 1fr) 35px;
+      gap: 10px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    .track {
+      height: 8px;
+      background: #252a37;
+      border-radius: 999px;
+      overflow: hidden
+    }
+
+    .fill {
+      height: 100%;
+      border-radius: 999px;
+      background: linear-gradient(90deg, var(--purple), var(--cyan));
+      width: 0
+    }
+
+    .revenue-list {
+      display: grid;
+      gap: 10px
+    }
+
+    .revenue {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      padding: 12px;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 10px
+    }
+
+    .revenue span {
+      color: var(--muted)
+    }
+
+    .tabs {
+      display: flex;
+      gap: 7px;
+      flex-wrap: wrap;
+      margin-bottom: 14px
+    }
+
+    .tab {
+      padding: 8px 12px;
+      border: 1px solid var(--line);
+      background: var(--panel);
+      color: var(--muted);
+      border-radius: 9px
+    }
+
+    .tab.active {
+      background: #27213f;
+      border-color: #5745a5;
+      color: #fff
+    }
+
+    .search {
+      background: var(--panel);
+      border: 1px solid var(--line);
+      color: var(--text);
+      padding: 10px 12px;
+      border-radius: 10px;
+      min-width: min(100%, 280px);
+      outline: none
+    }
+
+    .table-wrap {
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 12px
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      min-width: 720px
+    }
+
+    th,
+    td {
+      padding: 12px 13px;
+      text-align: left;
+      border-bottom: 1px solid var(--line);
+      white-space: nowrap;
+      font-size: 12px
+    }
+
+    th {
+      color: var(--muted);
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      background: #121620
+    }
+
+    tbody tr:hover {
+      background: rgba(255, 255, 255, .025)
+    }
+
+    tbody tr:last-child td {
+      border-bottom: 0
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      border-radius: 999px;
+      padding: 3px 8px;
+      background: #242a37;
+      color: #d5d9e5;
+      font-size: 11px
+    }
+
+    .pill.good {
+      background: #143b30;
+      color: #75e7bd
+    }
+
+    .pill.warn {
+      background: #3a3020;
+      color: #ffd58b
+    }
+
+    .pill.bad {
+      background: #3b2029;
+      color: #ff9eaa
+    }
+
+    .muted {
+      color: var(--muted)
+    }
+
+    .empty {
+      padding: 28px;
+      text-align: center;
+      color: var(--muted)
+    }
+
+    .error {
+      display: none;
+      background: #3b2029;
+      color: #ffb3bc;
+      padding: 12px;
+      border-radius: 10px;
+      margin-bottom: 14px
+    }
+
+    .error.show {
+      display: block
+    }
+
+    .loading {
+      color: var(--muted);
+      padding: 20px;
+      text-align: center
+    }
+
+    .footerline {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      color: var(--muted);
+      font-size: 12px;
+      margin-top: 12px
+    }
+
+    .hidden {
+      display: none !important
+    }
+
+    .nbadge {
+      margin-left: auto;
+      min-width: 18px;
+      height: 18px;
+      line-height: 18px;
+      padding: 0 5px;
+      border-radius: 9px;
+      background: var(--red);
+      color: #1a0b0e;
+      font-size: 11px;
+      font-weight: 800;
+      text-align: center
+    }
+
+    .support-grid {
+      display: grid;
+      grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+      gap: 16px;
+      align-items: start
+    }
+
+    .support-list {
+      margin-bottom: 0
+    }
+
+    .sup-item {
+      display: block;
+      width: 100%;
+      text-align: left;
+      background: var(--panel2);
+      border: 1px solid var(--line);
+      border-radius: 12px;
+      padding: 12px 14px;
+      margin-bottom: 8px;
+      color: var(--text)
+    }
+
+    .sup-item:hover,
+    .sup-item.selected {
+      border-color: #5745a5
+    }
+
+    .sup-item.waiting {
+      border-left: 3px solid var(--amber)
+    }
+
+    .sup-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 4px
+    }
+
+    .sup-subject {
+      font-weight: 700;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap
+    }
+
+    .sup-who,
+    .sup-prev,
+    .sup-when {
+      color: var(--muted);
+      font-size: 12px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap
+    }
+
+    .sup-prev {
+      font-size: 13px;
+      margin-top: 2px
+    }
+
+    .sup-when {
+      font-size: 11px;
+      margin-top: 4px
+    }
+
+    .support-thread {
+      padding: 0;
+      margin-bottom: 0;
+      display: flex;
+      flex-direction: column;
+      min-height: 480px
+    }
+
+    .sup-head {
+      padding: 16px 18px;
+      border-bottom: 1px solid var(--line);
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 12px;
+      flex-wrap: wrap
+    }
+
+    .sup-head h2 {
+      font-size: 16px;
+      margin: 0 0 4px;
+      overflow-wrap: anywhere
+    }
+
+    .sup-meta {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.6
+    }
+
+    .sup-actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap
+    }
+
+    .sup-msgs {
+      flex: 1;
+      overflow-y: auto;
+      max-height: 55vh;
+      padding: 16px 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px
+    }
+
+    .sup-bubble {
+      max-width: 78%;
+      padding: 10px 13px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere
+    }
+
+    .sup-bubble.user {
+      align-self: flex-start;
+      background: var(--panel2);
+      border: 1px solid var(--line)
+    }
+
+    .sup-bubble.admin {
+      align-self: flex-end;
+      background: rgba(139, 114, 255, .18);
+      border: 1px solid rgba(139, 114, 255, .38)
+    }
+
+    .sup-bubble small {
+      display: block;
+      color: var(--muted);
+      font-size: 11px;
+      margin-top: 6px
+    }
+
+    .sup-compose {
+      border-top: 1px solid var(--line);
+      padding: 14px 18px;
+      display: grid;
+      gap: 10px
+    }
+
+    .sup-compose textarea {
+      width: 100%;
+      min-height: 84px;
+      resize: vertical;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 11px 12px;
+      outline: none;
+      font: inherit
+    }
+
+    .sup-compose textarea:focus {
+      border-color: var(--purple)
+    }
+
+    .sup-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap
+    }
+
+    .sup-note {
+      color: var(--muted);
+      font-size: 12px
+    }
+
+    .sup-err {
+      color: var(--red);
+      font-size: 13px;
+      min-height: 18px
+    }
+
+    .sup-back {
+      display: none;
+      border: 0;
+      background: none;
+      color: var(--purple);
+      font-weight: 600;
+      padding: 12px 18px 0;
+      text-align: left
+    }
+
+    @media(max-width:900px) {
+      .support-grid {
+        grid-template-columns: minmax(0, 1fr)
+      }
+
+      .support-grid.reading .support-list {
+        display: none
+      }
+
+      .support-grid:not(.reading) .support-thread {
+        display: none
+      }
+
+      .sup-back {
+        display: block
+      }
+
+      .sup-bubble {
+        max-width: 92%
+      }
+    }
+
+    @media(max-width:1050px) {
+      .stats {
+        grid-template-columns: repeat(2, minmax(0, 1fr))
+      }
+
+      .grid2 {
+        grid-template-columns: 1fr
+      }
+    }
+
+    @media(max-width:700px) {
+      .shell {
+        grid-template-columns: 1fr
+      }
+
+      .sidebar {
+        padding: 14px;
+        border-right: 0;
+        border-bottom: 1px solid var(--line);
+        gap: 13px
+      }
+
+      .brand {
+        padding: 0 4px
+      }
+
+      .nav {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+        gap: 5px
+      }
+
+      .nbadge {
+        margin-left: 0
+      }
+
+      .nav button {
+        justify-content: center;
+        padding: 9px 5px;
+        font-size: 11px;
+        flex-direction: column;
+        gap: 2px
+      }
+
+      .side-note {
+        display: none
+      }
+
+      .main {
+        padding: 20px 13px 30px
+      }
+
+      .top {
+        align-items: flex-start;
+        flex-direction: column
+      }
+
+      .actions {
+        width: 100%
+      }
+
+      .stats {
+        gap: 9px
+      }
+
+      .stat {
+        padding: 13px;
+        min-height: 120px
+      }
+
+      .stat strong {
+        font-size: 25px
+      }
+
+      .bar-row {
+        grid-template-columns: 85px minmax(0, 1fr) 25px
+      }
+
+      .panel {
+        padding: 13px
+      }
+
+      .search {
+        width: 100%;
+        min-width: 0
+      }
+    }
+  </style>
 </head>
+
 <body>
-<div class="shell">
-<aside class="sidebar">
-  <div class="brand"><div class="mark">CP</div><div><strong>Clip Pirate.ai</strong><small>ADMIN CONTROL CENTER</small></div></div>
-  <nav class="nav" aria-label="Admin navigation">
-    <button class="active" data-view="overview"><span class="ico">▦</span>Overview</button>
-    <button data-view="users"><span class="ico">♙</span>Users</button>
-    <button data-view="jobs"><span class="ico">▷</span>Video jobs</button>
-    <button data-view="payments"><span class="ico">＄</span>Payments</button>
-    <button data-view="support"><span class="ico">✉</span>Support</button>
-  </nav>
-  <div class="side-note"><b>● Protected area</b>Read-only administration is enabled. Changes to accounts, plans and credits are intentionally not exposed in this first release.</div>
-</aside>
-<main class="main">
-  <header class="top"><div><div class="eyebrow">Platform operations</div><h1 id="pageTitle">Overview</h1><p class="sub" id="pageSub">Live health and activity from your Clip Pirate database.</p></div><div class="actions"><button class="btn" id="refreshBtn">↻ Refresh data</button><button class="btn primary" id="logoutBtn">Back to app</button></div></header>
-  <div class="error" id="errorBox" role="alert"></div>
-  <section id="overviewView">
-    <div class="stats">
-      <article class="stat"><div class="stat-head"><span>Total users</span><span class="stat-icon">♙</span></div><strong id="totalUsers">—</strong><small id="newUsers">Loading signups…</small></article>
-      <article class="stat"><div class="stat-head"><span>Verified emails</span><span class="stat-icon">✉</span></div><strong id="verifiedUsers">—</strong><small id="unverifiedUsers">Unverified: —</small></article>
-      <article class="stat"><div class="stat-head"><span>Videos generated</span><span class="stat-icon">▷</span></div><strong id="totalVideos">—</strong><small id="completedVideos">Completed: —</small></article>
-      <article class="stat"><div class="stat-head"><span>Active paid users</span><span class="stat-icon">＄</span></div><strong id="paidUsers">—</strong><small id="creditsRemaining">Credits remaining: —</small></article>
-    </div>
-    <div class="grid2">
-      <section class="panel"><div class="panel-head"><h2>Video generation status</h2><small>Projects</small></div><div class="bars" id="projectBars"><div class="loading">Loading statistics…</div></div></section>
-      <section class="panel"><div class="panel-head"><h2>Paid revenue</h2><small>Grouped by currency</small></div><div class="revenue-list" id="revenueList"><div class="loading">Loading payment totals…</div></div><p class="muted" style="font-size:11px;margin:14px 0 0">Currencies are kept separate; totals are not converted or combined.</p></section>
-    </div>
-    <section class="panel"><div class="panel-head"><h2>Recently registered users</h2><button class="btn" data-goto="users">View all users →</button></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Verification</th><th>Plan</th><th>Credits</th><th>Joined</th></tr></thead><tbody id="recentUsers"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody></table></div></section>
-  </section>
-  <section id="usersView" class="hidden"><section class="panel"><div class="panel-head"><h2>Account directory</h2><input class="search" id="userSearch" type="search" maxlength="120" placeholder="Search name, email or user ID"></div><div class="table-wrap"><table><thead><tr><th>Name</th><th>Email</th><th>Verified</th><th>Plan</th><th>Credits</th><th>Daily limit</th><th>Subscription</th><th>Joined</th></tr></thead><tbody id="usersTable"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody></table></div><div class="footerline"><span id="usersTotal">—</span><span>Latest accounts first · max 100 per request</span></div></section></section>
-  <section id="jobsView" class="hidden"><section class="panel"><div class="panel-head"><h2>Generation jobs</h2><small id="jobsTotal">Loading…</small></div><div class="table-wrap"><table><thead><tr><th>Job ID</th><th>User</th><th>Topic</th><th>Status</th><th>Created</th><th>Error</th></tr></thead><tbody id="jobsTable"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody></table></div></section></section>
-  <section id="paymentsView" class="hidden"><section class="panel"><div class="panel-head"><h2>Payment ledger</h2><small id="paymentsTotal">Loading…</small></div><div class="table-wrap"><table><thead><tr><th>Payment ID</th><th>User</th><th>Plan</th><th>Amount</th><th>Provider</th><th>Status</th><th>Created</th></tr></thead><tbody id="paymentsTable"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody></table></div></section></section>
-  <section id="supportView" class="hidden">
+  <div class="shell">
+    <aside class="sidebar">
+      <div class="brand">
+        <div class="mark">CP</div>
+        <div><strong>Clip Pirate.ai</strong><small>ADMIN CONTROL CENTER</small></div>
+      </div>
+      <nav class="nav" aria-label="Admin navigation">
+        <button class="active" data-view="overview"><span class="ico">▦</span>Overview</button>
+        <button data-view="users"><span class="ico">♙</span>Users</button>
+        <button data-view="jobs"><span class="ico">▷</span>Video jobs</button>
+        <button data-view="payments"><span class="ico">＄</span>Payments</button>
+        <button data-view="support"><span class="ico">✉</span>Support<span class="nbadge hidden" id="supportBadge">0</span></button>
+      </nav>
+      <div class="side-note"><b>● Protected area</b>Accounts, plans and credits are read-only here. Support replies are the only
+        action available.</div>
+    </aside>
+    <main class="main">
+      <header class="top">
+        <div>
+          <div class="eyebrow">Platform operations</div>
+          <h1 id="pageTitle">Overview</h1>
+          <p class="sub" id="pageSub">Live health and activity from your Clip Pirate database.</p>
+        </div>
+        <div class="actions"><button class="btn" id="refreshBtn">↻ Refresh data</button><button class="btn primary"
+            id="logoutBtn">Back to app</button></div>
+      </header>
+      <div class="error" id="errorBox" role="alert"></div>
+      <section id="overviewView">
+        <div class="stats">
+          <article class="stat">
+            <div class="stat-head"><span>Total users</span><span class="stat-icon">♙</span></div><strong
+              id="totalUsers">—</strong><small id="newUsers">Loading signups…</small>
+          </article>
+          <article class="stat">
+            <div class="stat-head"><span>Verified emails</span><span class="stat-icon">✉</span></div><strong
+              id="verifiedUsers">—</strong><small id="unverifiedUsers">Unverified: —</small>
+          </article>
+          <article class="stat">
+            <div class="stat-head"><span>Videos generated</span><span class="stat-icon">▷</span></div><strong
+              id="totalVideos">—</strong><small id="completedVideos">Completed: —</small>
+          </article>
+          <article class="stat">
+            <div class="stat-head"><span>Active paid users</span><span class="stat-icon">＄</span></div><strong
+              id="paidUsers">—</strong><small id="creditsRemaining">Credits remaining: —</small>
+          </article>
+        </div>
+        <div class="grid2">
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Video generation status</h2><small>Projects</small>
+            </div>
+            <div class="bars" id="projectBars">
+              <div class="loading">Loading statistics…</div>
+            </div>
+          </section>
+          <section class="panel">
+            <div class="panel-head">
+              <h2>Paid revenue</h2><small>Grouped by currency</small>
+            </div>
+            <div class="revenue-list" id="revenueList">
+              <div class="loading">Loading payment totals…</div>
+            </div>
+            <p class="muted" style="font-size:11px;margin:14px 0 0">Currencies are kept separate; totals are not
+              converted or combined.</p>
+          </section>
+        </div>
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Recently registered users</h2><button class="btn" data-goto="users">View all users →</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Verification</th>
+                  <th>Plan</th>
+                  <th>Credits</th>
+                  <th>Joined</th>
+                </tr>
+              </thead>
+              <tbody id="recentUsers">
+                <tr>
+                  <td colspan="6" class="empty">Loading…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+      <section id="usersView" class="hidden">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Account directory</h2><input class="search" id="userSearch" type="search" maxlength="120"
+              placeholder="Search name, email or user ID">
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Name</th>
+                  <th>Email</th>
+                  <th>Verified</th>
+                  <th>Plan</th>
+                  <th>Credits</th>
+                  <th>Daily limit</th>
+                  <th>Subscription</th>
+                  <th>Joined</th>
+                </tr>
+              </thead>
+              <tbody id="usersTable">
+                <tr>
+                  <td colspan="8" class="empty">Loading…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          <div class="footerline"><span id="usersTotal">—</span><span>Latest accounts first · max 100 per request</span>
+          </div>
+        </section>
+      </section>
+      <section id="jobsView" class="hidden">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Generation jobs</h2><small id="jobsTotal">Loading…</small>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Job ID</th>
+                  <th>User</th>
+                  <th>Topic</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                  <th>Error</th>
+                </tr>
+              </thead>
+              <tbody id="jobsTable">
+                <tr>
+                  <td colspan="6" class="empty">Loading…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+      <section id="paymentsView" class="hidden">
+        <section class="panel">
+          <div class="panel-head">
+            <h2>Payment ledger</h2><small id="paymentsTotal">Loading…</small>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Payment ID</th>
+                  <th>User</th>
+                  <th>Plan</th>
+                  <th>Amount</th>
+                  <th>Provider</th>
+                  <th>Status</th>
+                  <th>Created</th>
+                </tr>
+              </thead>
+              <tbody id="paymentsTable">
+                <tr>
+                  <td colspan="7" class="empty">Loading…</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </section>
+      </section>
+      <section id="supportView" class="hidden">
+        <div class="support-grid" id="supportGrid">
+          <section class="panel support-list">
+            <div class="panel-head">
+              <h2>Conversations</h2><small id="supportTotal">Loading...</small>
+            </div>
+            <div class="tabs" id="supportTabs">
+              <button class="tab active" data-sfilter="needs">Needs reply</button>
+              <button class="tab" data-sfilter="">All</button>
+              <button class="tab" data-sfilter="open">Open</button>
+              <button class="tab" data-sfilter="pending">Replied</button>
+              <button class="tab" data-sfilter="resolved">Resolved</button>
+              <button class="tab" data-sfilter="closed">Closed</button>
+            </div>
+            <div id="supportList">
+              <div class="loading">Loading...</div>
+            </div>
+          </section>
+          <section class="panel support-thread" id="supportThread">
+            <div class="empty">Select a conversation to read it and reply.</div>
+          </section>
+        </div>
+      </section>
+      <p class="footerline"><span id="lastUpdated">—</span><span>Powered by Clip Pirate.ai</span></p>
+    </main>
+  </div>
+  <script>
+    const $ = id => document.getElementById(id);
 
-  <section class="panel">
+    const state = {
+      view: 'overview',
+      userQuery: '',
+      overview: null
+    };
 
-    <div class="panel-head">
-      <h2>Support Conversations</h2>
-      <small id="supportTotal">Loading...</small>
-    </div>
-
-    <div class="table-wrap">
-
-      <table>
-
-        <thead>
-          <tr>
-            <th>Subject</th>
-            <th>User</th>
-            <th>Status</th>
-            <th>Messages</th>
-            <th>Last Updated</th>
-          </tr>
-        </thead>
-
-        <tbody id="supportTable">
-          <tr>
-            <td colspan="5" class="empty">
-              Loading...
-            </td>
-          </tr>
-        </tbody>
-
-      </table>
-
-    </div>
-
-  </section>
- </section>
-  <p class="footerline"><span id="lastUpdated">—</span><span>Powered by Clip Pirate.ai</span></p>
-</main>
-</div>
-<script>
-const $ = id => document.getElementById(id);
-
-const state = {
-    view: 'overview',
-    userQuery: '',
-    overview: null
-};
-
-const pageMeta = {
-    overview: [
+    const pageMeta = {
+      overview: [
         'Overview',
         'Live health and activity from your Clip Pirate database.'
-    ],
-    users: [
+      ],
+      users: [
         'Users',
         'Search registered accounts and inspect verification and subscription status.'
-    ],
-    jobs: [
+      ],
+      jobs: [
         'Video jobs',
         'Review generation status and recent errors.'
-    ],
-    payments: [
+      ],
+      payments: [
         'Payments',
         'Review payment records and successful totals by currency.'
-    ],
-    support: [
+      ],
+      support: [
         'Support',
         'Manage customer conversations and support replies.'
-    ]
-};
-function el(tag, text, cls='') { const node=document.createElement(tag); if(text !== undefined && text !== null) node.textContent=String(text); if(cls) node.className=cls; return node; }
-function td(row, text, cls='') { const cell=el('td',text,cls); row.appendChild(cell); return cell; }
-function pill(text, kind='') { return el('span',text,'pill '+kind); }
-function statusKind(s) { s=String(s||'').toLowerCase(); if(['paid','completed','active','verified','success'].includes(s)) return 'good'; if(['pending','processing','unverified','queued','running'].includes(s)) return 'warn'; if(['failed','expired','cancelled','canceled'].includes(s)) return 'bad'; return ''; }
-function fmtDate(v) { if(!v) return '—'; const d=new Date(v); return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleString(); }
-function fmtNum(v) { return Number(v||0).toLocaleString(); }
-function clearError(){ $('errorBox').textContent=''; $('errorBox').classList.remove('show'); }
-function showError(message){ $('errorBox').textContent=message; $('errorBox').classList.add('show'); }
-async function api(path){ const r=await fetch(path,{credentials:'same-origin',headers:{'Accept':'application/json'}}); if(r.status===401){location.href='/app';throw new Error('Please sign in again.');} if(r.status===403){throw new Error('This signed-in account is not on the admin allowlist. Set ADMIN_EMAILS to your verified account email.');} const data=await r.json().catch(()=>({})); if(!r.ok) throw new Error(data.detail?.message || data.detail || `Request failed (${r.status})`); return data; }
-function setView(view){ state.view=view; document.querySelectorAll('.nav button').forEach(b=>b.classList.toggle('active',b.dataset.view===view)); Object.keys(pageMeta).forEach(k=>$(k+'View').classList.toggle('hidden',k!==view)); $('pageTitle').textContent=pageMeta[view][0]; $('pageSub').textContent=pageMeta[view][1]; clearError(); loadCurrent(); }
-function fillRows(tbody, rows, columns, emptyText){tbody.replaceChildren(); if(!rows.length){const r=el('tr');const c=el('td',emptyText,'empty');c.colSpan=columns;r.appendChild(c);tbody.appendChild(r);return;} rows.forEach(item=>{const r=el('tr'); tbody.appendChild(r);});}
-function drawRecent(rows){const body=$('recentUsers');body.replaceChildren();if(!rows.length){const r=el('tr');const c=el('td','No users yet.','empty');c.colSpan=6;r.appendChild(c);body.appendChild(r);return;}for(const u of rows){const r=el('tr');td(r,u.name);td(r,u.email);const c=td(r,'');c.appendChild(pill(u.email_verified?'Verified':'Unverified',u.email_verified?'good':'warn'));td(r,u.plan);td(r,fmtNum(u.credits));td(r,fmtDate(u.created_at));body.appendChild(r);}}
-function drawBars(p){const rows=[['Completed',p.completed,'good'],['In progress',p.in_progress,'warn'],['Failed',p.failed,'bad']];const max=Math.max(1,...rows.map(x=>Number(x[1]||0)));const root=$('projectBars');root.replaceChildren();for(const [label,value,kind] of rows){const wrap=el('div','');wrap.className='bar-row';wrap.appendChild(el('span',label));const track=el('div','track');const fill=el('div','fill');fill.style.width=`${Math.max(0,Math.min(100,Number(value||0)/max*100))}%`;if(kind==='bad')fill.style.background='var(--red)';if(kind==='warn')fill.style.background='var(--amber)';track.appendChild(fill);wrap.appendChild(track);wrap.appendChild(el('strong',fmtNum(value)));root.appendChild(wrap);}}
-function drawRevenue(rows){const root=$('revenueList');root.replaceChildren();if(!rows.length){root.appendChild(el('div','No paid payments recorded yet.','empty'));return;}for(const x of rows){const row=el('div','');row.className='revenue';const left=el('div','');left.appendChild(el('b',x.currency));left.appendChild(el('div',`${fmtNum(x.payment_count)} paid payment(s)`,'muted'));row.appendChild(left);row.appendChild(el('strong',`${x.currency} ${Number(x.total||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`));root.appendChild(row);}}
-async function loadOverview(){const d=await api('/admin/api/overview');state.overview=d;const u=d.users||{},p=d.projects||{};$('totalUsers').textContent=fmtNum(u.total);$('newUsers').textContent=`+${fmtNum(u.new_last_7_days)} in the last 7 days`;$('verifiedUsers').textContent=fmtNum(u.verified);$('unverifiedUsers').textContent=`Unverified: ${fmtNum(u.unverified)}`;$('totalVideos').textContent=fmtNum(p.total);$('completedVideos').textContent=`Completed: ${fmtNum(p.completed)} · Failed: ${fmtNum(p.failed)}`;$('paidUsers').textContent=fmtNum(u.paid_active);$('creditsRemaining').textContent=`Credits remaining: ${fmtNum(u.credits_remaining)}`;drawBars(p);drawRevenue(d.paid_revenue_by_currency||[]);drawRecent(d.recent_users||[]);$('lastUpdated').textContent=`Updated ${fmtDate(d.generated_at)}`;}
-async function loadUsers(){const params=new URLSearchParams({q:state.userQuery,limit:'100',offset:'0'});const d=await api('/admin/api/users?'+params);const body=$('usersTable');body.replaceChildren();$('usersTotal').textContent=`${fmtNum(d.total)} user(s)`;if(!d.users.length){const r=el('tr');const c=el('td','No matching users.','empty');c.colSpan=8;r.appendChild(c);body.appendChild(r);return;}for(const u of d.users){const r=el('tr');td(r,u.name);td(r,u.email);const v=td(r,'');v.appendChild(pill(u.email_verified?'Verified':'Unverified',u.email_verified?'good':'warn'));td(r,u.plan);td(r,`${fmtNum(u.credits)} / ${fmtNum(u.monthly_limit)}`);td(r,fmtNum(u.daily_generation_limit));const s=td(r,'');s.appendChild(pill(u.subscription_status||'unknown',statusKind(u.subscription_status)));td(r,fmtDate(u.created_at));body.appendChild(r);}}
-async function loadJobs(){const d=await api('/admin/api/jobs?limit=100');const body=$('jobsTable');body.replaceChildren();$('jobsTotal').textContent=`${fmtNum(d.total)} job(s)`;if(!d.jobs.length){const r=el('tr');const c=el('td','No generation jobs recorded.','empty');c.colSpan=6;r.appendChild(c);body.appendChild(r);return;}for(const j of d.jobs){const r=el('tr');td(r,String(j.id||'').slice(0,12)+'…');td(r,`${j.user_name||'Unknown'} · ${j.email||''}`);td(r,j.topic||'—');const s=td(r,'');s.appendChild(pill(j.status,statusKind(j.status)));td(r,fmtDate(j.created_at));td(r,j.error||'—');body.appendChild(r);}}
-async function loadPayments(){const d=await api('/admin/api/payments?limit=100');const body=$('paymentsTable');body.replaceChildren();$('paymentsTotal').textContent=`${fmtNum(d.total)} payment(s)`;if(!d.payments.length){const r=el('tr');const c=el('td','No payment records yet.','empty');c.colSpan=7;r.appendChild(c);body.appendChild(r);return;}for(const p of d.payments){const r=el('tr');td(r,String(p.id||'').slice(0,12)+'…');td(r,`${p.user_name||'Unknown'} · ${p.email||''}`);td(r,p.plan);td(r,`${p.currency||''} ${Number(p.amount||0).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`);td(r,p.provider);const s=td(r,'');s.appendChild(pill(p.status,statusKind(p.status)));td(r,fmtDate(p.created_at));body.appendChild(r);}}
-async function loadSupport(){
+      ]
+    };
+    function el(tag, text, cls = '') { const node = document.createElement(tag); if (text !== undefined && text !== null) node.textContent = String(text); if (cls) node.className = cls; return node; }
+    function td(row, text, cls = '') { const cell = el('td', text, cls); row.appendChild(cell); return cell; }
+    function pill(text, kind = '') { return el('span', text, 'pill ' + kind); }
+    function statusKind(s) { s = String(s || '').toLowerCase(); if (['paid', 'completed', 'active', 'verified', 'success'].includes(s)) return 'good'; if (['pending', 'processing', 'unverified', 'queued', 'running'].includes(s)) return 'warn'; if (['failed', 'expired', 'cancelled', 'canceled'].includes(s)) return 'bad'; return ''; }
+    function fmtDate(v) { if (!v) return '—'; const d = new Date(v); return Number.isNaN(d.getTime()) ? String(v) : d.toLocaleString(); }
+    function fmtNum(v) { return Number(v || 0).toLocaleString(); }
+    function clearError() { $('errorBox').textContent = ''; $('errorBox').classList.remove('show'); }
+    function showError(message) { $('errorBox').textContent = message; $('errorBox').classList.add('show'); }
+    async function api(path) { const r = await fetch(path, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } }); if (r.status === 401) { location.href = '/app'; throw new Error('Please sign in again.'); } if (r.status === 403) { throw new Error('This signed-in account is not on the admin allowlist. Set ADMIN_EMAILS to your verified account email.'); } const data = await r.json().catch(() => ({})); if (!r.ok) throw new Error(data.detail?.message || data.detail || `Request failed (${r.status})`); return data; }
+    function setView(view) { state.view = view; document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view)); Object.keys(pageMeta).forEach(k => $(k + 'View').classList.toggle('hidden', k !== view)); $('pageTitle').textContent = pageMeta[view][0]; $('pageSub').textContent = pageMeta[view][1]; clearError(); loadCurrent(); }
+    function fillRows(tbody, rows, columns, emptyText) { tbody.replaceChildren(); if (!rows.length) { const r = el('tr'); const c = el('td', emptyText, 'empty'); c.colSpan = columns; r.appendChild(c); tbody.appendChild(r); return; } rows.forEach(item => { const r = el('tr'); tbody.appendChild(r); }); }
+    function drawRecent(rows) { const body = $('recentUsers'); body.replaceChildren(); if (!rows.length) { const r = el('tr'); const c = el('td', 'No users yet.', 'empty'); c.colSpan = 6; r.appendChild(c); body.appendChild(r); return; } for (const u of rows) { const r = el('tr'); td(r, u.name); td(r, u.email); const c = td(r, ''); c.appendChild(pill(u.email_verified ? 'Verified' : 'Unverified', u.email_verified ? 'good' : 'warn')); td(r, u.plan); td(r, fmtNum(u.credits)); td(r, fmtDate(u.created_at)); body.appendChild(r); } }
+    function drawBars(p) { const rows = [['Completed', p.completed, 'good'], ['In progress', p.in_progress, 'warn'], ['Failed', p.failed, 'bad']]; const max = Math.max(1, ...rows.map(x => Number(x[1] || 0))); const root = $('projectBars'); root.replaceChildren(); for (const [label, value, kind] of rows) { const wrap = el('div', ''); wrap.className = 'bar-row'; wrap.appendChild(el('span', label)); const track = el('div', 'track'); const fill = el('div', 'fill'); fill.style.width = `${Math.max(0, Math.min(100, Number(value || 0) / max * 100))}%`; if (kind === 'bad') fill.style.background = 'var(--red)'; if (kind === 'warn') fill.style.background = 'var(--amber)'; track.appendChild(fill); wrap.appendChild(track); wrap.appendChild(el('strong', fmtNum(value))); root.appendChild(wrap); } }
+    function drawRevenue(rows) { const root = $('revenueList'); root.replaceChildren(); if (!rows.length) { root.appendChild(el('div', 'No paid payments recorded yet.', 'empty')); return; } for (const x of rows) { const row = el('div', ''); row.className = 'revenue'; const left = el('div', ''); left.appendChild(el('b', x.currency)); left.appendChild(el('div', `${fmtNum(x.payment_count)} paid payment(s)`, 'muted')); row.appendChild(left); row.appendChild(el('strong', `${x.currency} ${Number(x.total || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`)); root.appendChild(row); } }
+    async function loadOverview() { const d = await api('/admin/api/overview'); state.overview = d; const u = d.users || {}, p = d.projects || {}; $('totalUsers').textContent = fmtNum(u.total); $('newUsers').textContent = `+${fmtNum(u.new_last_7_days)} in the last 7 days`; $('verifiedUsers').textContent = fmtNum(u.verified); $('unverifiedUsers').textContent = `Unverified: ${fmtNum(u.unverified)}`; $('totalVideos').textContent = fmtNum(p.total); $('completedVideos').textContent = `Completed: ${fmtNum(p.completed)} · Failed: ${fmtNum(p.failed)}`; $('paidUsers').textContent = fmtNum(u.paid_active); $('creditsRemaining').textContent = `Credits remaining: ${fmtNum(u.credits_remaining)}`; drawBars(p); drawRevenue(d.paid_revenue_by_currency || []); drawRecent(d.recent_users || []); $('lastUpdated').textContent = `Updated ${fmtDate(d.generated_at)}`; }
+    async function loadUsers() { const params = new URLSearchParams({ q: state.userQuery, limit: '100', offset: '0' }); const d = await api('/admin/api/users?' + params); const body = $('usersTable'); body.replaceChildren(); $('usersTotal').textContent = `${fmtNum(d.total)} user(s)`; if (!d.users.length) { const r = el('tr'); const c = el('td', 'No matching users.', 'empty'); c.colSpan = 8; r.appendChild(c); body.appendChild(r); return; } for (const u of d.users) { const r = el('tr'); td(r, u.name); td(r, u.email); const v = td(r, ''); v.appendChild(pill(u.email_verified ? 'Verified' : 'Unverified', u.email_verified ? 'good' : 'warn')); td(r, u.plan); td(r, `${fmtNum(u.credits)} / ${fmtNum(u.monthly_limit)}`); td(r, fmtNum(u.daily_generation_limit)); const s = td(r, ''); s.appendChild(pill(u.subscription_status || 'unknown', statusKind(u.subscription_status))); td(r, fmtDate(u.created_at)); body.appendChild(r); } }
+    async function loadJobs() { const d = await api('/admin/api/jobs?limit=100'); const body = $('jobsTable'); body.replaceChildren(); $('jobsTotal').textContent = `${fmtNum(d.total)} job(s)`; if (!d.jobs.length) { const r = el('tr'); const c = el('td', 'No generation jobs recorded.', 'empty'); c.colSpan = 6; r.appendChild(c); body.appendChild(r); return; } for (const j of d.jobs) { const r = el('tr'); td(r, String(j.id || '').slice(0, 12) + '…'); td(r, `${j.user_name || 'Unknown'} · ${j.email || ''}`); td(r, j.topic || '—'); const s = td(r, ''); s.appendChild(pill(j.status, statusKind(j.status))); td(r, fmtDate(j.created_at)); td(r, j.error || '—'); body.appendChild(r); } }
+    async function loadPayments() { const d = await api('/admin/api/payments?limit=100'); const body = $('paymentsTable'); body.replaceChildren(); $('paymentsTotal').textContent = `${fmtNum(d.total)} payment(s)`; if (!d.payments.length) { const r = el('tr'); const c = el('td', 'No payment records yet.', 'empty'); c.colSpan = 7; r.appendChild(c); body.appendChild(r); return; } for (const p of d.payments) { const r = el('tr'); td(r, String(p.id || '').slice(0, 12) + '…'); td(r, `${p.user_name || 'Unknown'} · ${p.email || ''}`); td(r, p.plan); td(r, `${p.currency || ''} ${Number(p.amount || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`); td(r, p.provider); const s = td(r, ''); s.appendChild(pill(p.status, statusKind(p.status))); td(r, fmtDate(p.created_at)); body.appendChild(r); } }
+    const sup = { filter: 'needs', selected: null, shown: null };
+    const SUP_LABEL = { open: 'Open', pending: 'Replied', resolved: 'Resolved', closed: 'Closed' };
 
-    const data =
-        await api('/admin/api/conversations');
+    async function post(path, body) {
+      const r = await fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(body || {}) });
+      if (r.status === 401) { location.href = '/app'; throw new Error('Please sign in again.'); }
+      const data = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(typeof data.detail === 'string' ? data.detail : (data.detail?.message || `Request failed (${r.status})`));
+      return data;
+    }
 
-    const body =
-        $('supportTable');
+    function supPill(status, waiting) {
+      return pill(waiting ? 'Needs reply' : (SUP_LABEL[status] || status), waiting ? 'warn' : (status === 'pending' ? 'good' : ''));
+    }
 
-    body.replaceChildren();
+    function setSupportBadge(n) {
+      const b = $('supportBadge');
+      b.textContent = n > 99 ? '99+' : String(n);
+      b.classList.toggle('hidden', !n);
+    }
 
-    const conversations =
-        data.conversations || [];
+    async function refreshSupportBadge() {
+      try { const d = await api('/admin/api/support/inbox'); setSupportBadge(d.needs_reply || 0); } catch (e) { /* quiet */ }
+    }
 
-    $('supportTotal').textContent =
-        `${fmtNum(conversations.length)} conversation(s)`;
+    async function loadSupport() {
+      const q = ['open', 'pending', 'resolved', 'closed'].includes(sup.filter) ? '?status=' + sup.filter : '';
+      const d = await api('/admin/api/support/inbox' + q);
+      setSupportBadge(d.needs_reply || 0);
 
-    if(!conversations.length){
+      let items = d.conversations || [];
+      if (sup.filter === 'needs') items = items.filter(i => i.needs_reply);
 
-        const r = el('tr');
-        const c = el(
-            'td',
-            'No support conversations.',
-            'empty'
-        );
+      $('supportTotal').textContent = `${fmtNum(items.length)} conversation(s)`;
 
-        c.colSpan = 5;
+      const list = $('supportList');
+      list.replaceChildren();
 
-        r.appendChild(c);
-
-        body.appendChild(r);
-
+      if (!items.length) {
+        list.appendChild(el('div', sup.filter === 'needs' ? 'Nothing is waiting for a reply.' : 'No conversations here.', 'empty'));
         return;
+      }
+
+      for (const i of items) {
+        const row = el('button', '', 'sup-item' + (i.needs_reply ? ' waiting' : '') + (i.id === sup.selected ? ' selected' : ''));
+        row.type = 'button';
+
+        const top = el('div', '', 'sup-top');
+        top.appendChild(el('span', i.subject || 'No subject', 'sup-subject'));
+        top.appendChild(supPill(i.status, i.needs_reply));
+        row.appendChild(top);
+
+        row.appendChild(el('div', `${i.user_name || 'Unknown'} · ${i.user_email || ''} · ${i.user_plan || ''}`, 'sup-who'));
+        row.appendChild(el('div', (i.last_sender === 'admin' ? 'You: ' : '') + (i.preview || ''), 'sup-prev'));
+        row.appendChild(el('div', fmtDate(i.last_at), 'sup-when'));
+
+        row.addEventListener('click', () => openSupportThread(i.id));
+        list.appendChild(row);
+      }
     }
 
-    for(const convo of conversations){
-
-        const r = el('tr');
-
-        td(
-            r,
-            convo.subject || 'No subject'
-        );
-
-        td(
-            r,
-            convo.user_name ||
-            convo.user_id ||
-            'Unknown'
-        );
-
-        const s = td(r,'');
-
-        s.appendChild(
-            pill(
-                convo.status || 'open',
-                statusKind(
-                    convo.status
-                )
-            )
-        );
-
-        td(
-            r,
-            String(
-                convo.message_count || 0
-            )
-        );
-
-        td(
-            r,
-            fmtDate(
-                convo.updated_at
-            )
-        );
-
-        body.appendChild(r);
+    function drawSupportMessages(messages) {
+      const box = $('supMsgs');
+      if (!box) return;
+      const stick = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+      const first = !box.children.length;
+      box.replaceChildren();
+      for (const m of messages) {
+        const bubble = el('div', m.message, 'sup-bubble ' + (m.from === 'admin' ? 'admin' : 'user'));
+        bubble.appendChild(el('small', (m.from === 'admin' ? 'You' : 'User') + ' · ' + fmtDate(m.created_at)));
+        box.appendChild(bubble);
+      }
+      if (stick || first) box.scrollTop = box.scrollHeight;
     }
-}
-async function loadCurrent(){clearError();$('refreshBtn').disabled=true;try{
-if(state.view==='overview')
-    await loadOverview();
 
-else if(state.view==='users')
-    await loadUsers();
+    function buildSupportThread() {
+      const pane = $('supportThread');
+      pane.replaceChildren();
 
-else if(state.view==='jobs')
-    await loadJobs();
+      const back = el('button', '← Back to conversations', 'sup-back');
+      back.type = 'button';
+      back.addEventListener('click', () => {
+        $('supportGrid').classList.remove('reading');
+        sup.selected = null; sup.shown = null;
+        loadSupport().catch(e => showError(e.message));
+      });
+      pane.appendChild(back);
 
-else if(state.view==='payments')
-    await loadPayments();
+      const head = el('div', '', 'sup-head');
+      const info = el('div');
+      const title = el('h2'); title.id = 'supTitle';
+      const meta = el('div', '', 'sup-meta'); meta.id = 'supMeta';
+      const status = el('div'); status.id = 'supStatus'; status.style.marginTop = '6px';
+      info.append(title, meta, status);
 
-else if(state.view==='support')
-    await loadSupport();
-}
-  catch(e){showError(e.message||'Could not load admin data.');}
-finally{$('refreshBtn').disabled=false;}}
-document.querySelectorAll('.nav button').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.view)));
-document.querySelectorAll('[data-goto]').forEach(b=>b.addEventListener('click',()=>setView(b.dataset.goto)));
-$('refreshBtn').addEventListener('click',loadCurrent);
-$('logoutBtn').addEventListener('click',()=>location.href='/app');
-let searchTimer; $('userSearch').addEventListener('input',e=>{clearTimeout(searchTimer);state.userQuery=e.target.value;searchTimer=setTimeout(()=>{if(state.view==='users')loadUsers().catch(err=>showError(err.message));},250);});
-loadCurrent();
-</script>
+      const actions = el('div', '', 'sup-actions');
+      for (const [id, label, value] of [['supResolve', 'Mark resolved', 'resolved'], ['supClose', 'Close', 'closed'], ['supReopen', 'Reopen', 'open']]) {
+        const b = el('button', label, 'btn'); b.type = 'button'; b.id = id;
+        b.addEventListener('click', () => setSupportStatus(value));
+        actions.appendChild(b);
+      }
+      head.append(info, actions);
+      pane.appendChild(head);
+
+      const msgs = el('div', '', 'sup-msgs'); msgs.id = 'supMsgs';
+      pane.appendChild(msgs);
+
+      const form = el('form', '', 'sup-compose');
+      const text = el('textarea'); text.id = 'supReply'; text.maxLength = 5000; text.placeholder = 'Write your reply...';
+      const row = el('div', '', 'sup-row');
+      row.appendChild(el('span', 'The user is emailed once, then sees your replies in Settings → Help.', 'sup-note'));
+      const send = el('button', 'Send reply', 'btn primary'); send.type = 'submit'; send.id = 'supSend';
+      row.appendChild(send);
+      const err = el('div', '', 'sup-err'); err.id = 'supErr';
+      form.append(text, row, err);
+
+      form.addEventListener('submit', async ev => {
+        ev.preventDefault();
+        const value = text.value.trim();
+        if (!value) return;
+        send.disabled = true; err.textContent = '';
+        try {
+          await post('/admin/api/support/thread/' + encodeURIComponent(sup.selected) + '/reply', { message: value });
+          text.value = '';
+          await Promise.all([openSupportThread(sup.selected, true), loadSupport()]);
+        } catch (e) { err.textContent = e.message; }
+        send.disabled = false;
+      });
+
+      text.addEventListener('keydown', ev => { if ((ev.ctrlKey || ev.metaKey) && ev.key === 'Enter') form.requestSubmit(); });
+      pane.appendChild(form);
+    }
+
+    async function openSupportThread(id, quiet) {
+      sup.selected = id;
+      $('supportGrid').classList.add('reading');
+      try {
+        const t = await api('/admin/api/support/thread/' + encodeURIComponent(id));
+        if (sup.shown !== id) { sup.shown = id; buildSupportThread(); }
+
+        $('supTitle').textContent = t.subject || 'No subject';
+        $('supMeta').textContent = `${t.user.name} · ${t.user.email} · ${t.user.plan || 'free'} plan · ${fmtNum(t.user.credits)} credits · started ${fmtDate(t.created_at)}`;
+        $('supStatus').replaceChildren(supPill(t.status, false));
+
+        $('supResolve').classList.toggle('hidden', t.status === 'resolved' || t.status === 'closed');
+        $('supClose').classList.toggle('hidden', t.status === 'closed');
+        $('supReopen').classList.toggle('hidden', t.status === 'open' || t.status === 'pending');
+
+        drawSupportMessages(t.messages || []);
+        if (!quiet) loadSupport().catch(() => {});
+      } catch (e) {
+        if (!quiet) showError(e.message);
+      }
+    }
+
+    async function setSupportStatus(status) {
+      try {
+        await post('/admin/api/support/thread/' + encodeURIComponent(sup.selected) + '/status', { status });
+        await Promise.all([openSupportThread(sup.selected, true), loadSupport()]);
+      } catch (e) { showError(e.message); }
+    }
+
+    async function loadCurrent() {
+      clearError(); $('refreshBtn').disabled = true; try {
+        if (state.view === 'overview')
+          await loadOverview();
+
+        else if (state.view === 'users')
+          await loadUsers();
+
+        else if (state.view === 'jobs')
+          await loadJobs();
+
+        else if (state.view === 'payments')
+          await loadPayments();
+
+        else if (state.view === 'support')
+          await loadSupport();
+      }
+      catch (e) { showError(e.message || 'Could not load admin data.'); }
+      finally { $('refreshBtn').disabled = false; }
+    }
+    document.querySelectorAll('.nav button').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+    document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => setView(b.dataset.goto)));
+    $('refreshBtn').addEventListener('click', loadCurrent);
+    $('logoutBtn').addEventListener('click', () => location.href = '/app');
+    let searchTimer; $('userSearch').addEventListener('input', e => { clearTimeout(searchTimer); state.userQuery = e.target.value; searchTimer = setTimeout(() => { if (state.view === 'users') loadUsers().catch(err => showError(err.message)); }, 250); });
+    $('supportTabs').addEventListener('click', e => {
+      const tab = e.target.closest('.tab');
+      if (!tab) return;
+      document.querySelectorAll('#supportTabs .tab').forEach(t => t.classList.remove('active'));
+      tab.classList.add('active');
+      sup.filter = tab.dataset.sfilter;
+      loadSupport().catch(err => showError(err.message));
+    });
+    setInterval(() => {
+      if (document.hidden) return;
+      if (state.view === 'support') {
+        loadSupport().catch(() => {});
+        if (sup.selected && sup.shown === sup.selected) openSupportThread(sup.selected, true);
+      } else {
+        refreshSupportBadge();
+      }
+    }, 20000);
+    if (location.hash === '#support') setView('support'); else { loadCurrent(); refreshSupportBadge(); }
+  </script>
 </body>
+
 </html>

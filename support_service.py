@@ -333,12 +333,7 @@ def register_support_routes(app, current_user, limiter, require_admin, static_di
                 return RedirectResponse(url="/app", status_code=303)
             raise
 
-        page = static_dir / "admin-support.html"
-
-        if not page.is_file():
-            raise HTTPException(status_code=404, detail="admin-support.html is missing from the static folder.")
-
-        return FileResponse(page, media_type="text/html")
+        return RedirectResponse(url="/admin#support", status_code=303)
 
     @app.get("/admin/api/support/inbox")
     def admin_inbox(
