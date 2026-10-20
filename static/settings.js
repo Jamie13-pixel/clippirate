@@ -143,8 +143,29 @@
         panel.id = "settings-billing";
         panel.className = "settings-panel";
         panel.innerHTML = "<h2>Billing</h2><p>Your plan, renewal date and payments.</p>" +
-            '<div id="billingBody"><div class="sx-empty">Loading billing...</div></div>';
+            '<div id="billingBody"><div class="sx-empty">Loading billing...</div></div>' +
+            '<div id="billingPlans"></div>';
         card.appendChild(panel);
+        movePlansToBilling();
+    }
+
+    /* Subscription plans live in Billing now: move the existing heading,
+       currency picker and plans grid out of the Account panel. */
+    function movePlansToBilling() {
+        var grid = $("plansGrid");
+        var target = $("billingPlans");
+        if (!grid || !target || target.contains(grid)) { return; }
+        var head = grid.previousElementSibling;
+        if (head && head.querySelector && head.querySelector("#currencyPicker")) {
+            head.style.marginTop = "28px";
+            target.appendChild(head);
+        }
+        target.appendChild(grid);
+        var acct = $("settings-account");
+        if (acct) {
+            var p = acct.querySelector("p");
+            if (p) { p.textContent = "Your current plan and credits. Manage plans and payments in Billing."; }
+        }
     }
 
     async function loadBilling() {
@@ -190,11 +211,8 @@
             var btn = $("billingPlansBtn");
             if (btn) {
                 btn.addEventListener("click", function () {
-                    var nav = document.querySelector(".settings-nav");
-                    var acct = Array.prototype.find.call(nav.querySelectorAll("button"), function (b) {
-                        return /showSettingsPanel\('account'/.test(b.getAttribute("onclick") || "");
-                    });
-                    window.showSettingsPanel("account", acct);
+                    var plans = $("billingPlans");
+                    if (plans && plans.scrollIntoView) { plans.scrollIntoView({ behavior: "smooth", block: "start" }); }
                 });
             }
         } catch (error) {
@@ -829,7 +847,10 @@
             var base = window.showSettingsPanel;
             window.showSettingsPanel = function (name) {
                 var result = base.apply(this, arguments);
-                if (name === "billing") { loadBilling(); }
+                if (name === "billing") {
+                    loadBilling();
+                    if (typeof window.loadPlans === "function") { window.loadPlans(); }
+                }
                 if (name === "preferences") { loadReminderSwitch(); }
                 if (name === "help") { openHelp(); }
                 return result;
