@@ -450,6 +450,63 @@
       display: none !important
     }
 
+    .gate {
+      position: fixed;
+      inset: 0;
+      z-index: 100;
+      display: grid;
+      place-items: center;
+      padding: 16px;
+      background: radial-gradient(60% 50% at 50% 0%, rgba(124, 92, 255, .28), transparent 70%), var(--bg)
+    }
+
+    .gate.hidden {
+      display: none
+    }
+
+    .gate-card {
+      width: 100%;
+      max-width: 400px;
+      background: var(--panel);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 28px;
+      display: grid;
+      gap: 14px
+    }
+
+    .gate-card h1 {
+      font-size: 22px;
+      margin: 0
+    }
+
+    .gate-card p {
+      margin: 0;
+      color: var(--muted);
+      font-size: 14px
+    }
+
+    .gate-card input {
+      width: 100%;
+      background: var(--bg);
+      color: var(--text);
+      border: 1px solid var(--line);
+      border-radius: 10px;
+      padding: 12px 13px;
+      font: inherit;
+      outline: none
+    }
+
+    .gate-card input:focus {
+      border-color: var(--purple)
+    }
+
+    .gate-err {
+      color: var(--red);
+      font-size: 13px;
+      min-height: 18px
+    }
+
     .nbadge {
       margin-left: auto;
       min-width: 18px;
@@ -771,6 +828,17 @@
 </head>
 
 <body>
+  <div class="gate hidden" id="gate">
+    <form class="gate-card" id="gateForm">
+      <h1>Clip Pirate admin</h1>
+      <p id="gateMsg">Sign in with your admin account.</p>
+      <input id="gateEmail" type="email" placeholder="Email" autocomplete="username" required>
+      <input id="gatePass" type="password" placeholder="Password" autocomplete="current-password" required>
+      <div class="gate-err" id="gateErr"></div>
+      <button class="btn primary" id="gateBtn" type="submit">Sign in</button>
+    </form>
+  </div>
+
   <div class="shell">
     <aside class="sidebar">
       <div class="brand">
@@ -794,8 +862,8 @@
           <h1 id="pageTitle">Overview</h1>
           <p class="sub" id="pageSub">Live health and activity from your Clip Pirate database.</p>
         </div>
-        <div class="actions"><button class="btn" id="refreshBtn">↻ Refresh data</button><button class="btn primary"
-            id="logoutBtn">Back to app</button></div>
+        <div class="actions"><button class="btn" id="refreshBtn">↻ Refresh data</button><button class="btn" id="appBtn">Back to app</button><button class="btn primary"
+            id="logoutBtn">Sign out</button></div>
       </header>
       <div class="error" id="errorBox" role="alert"></div>
       <section id="overviewView">
@@ -1011,7 +1079,7 @@
     function fmtNum(v) { return Number(v || 0).toLocaleString(); }
     function clearError() { $('errorBox').textContent = ''; $('errorBox').classList.remove('show'); }
     function showError(message) { $('errorBox').textContent = message; $('errorBox').classList.add('show'); }
-    async function api(path) { const r = await fetch(path, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } }); if (r.status === 401) { location.href = '/app'; throw new Error('Please sign in again.'); } if (r.status === 403) { throw new Error('This signed-in account is not on the admin allowlist. Set ADMIN_EMAILS to your verified account email.'); } const data = await r.json().catch(() => ({})); if (!r.ok) throw new Error(data.detail?.message || data.detail || `Request failed (${r.status})`); return data; }
+    async function api(path) { const r = await fetch(path, { credentials: 'same-origin', headers: { 'Accept': 'application/json' } }); if (r.status === 401) { showGate(); throw new Error('Please sign in again.'); } if (r.status === 403) { showGate('That account is not on the admin allowlist. Sign in with the admin account.'); throw new Error('This signed-in account is not on the admin allowlist.'); } const data = await r.json().catch(() => ({})); if (!r.ok) throw new Error(data.detail?.message || data.detail || `Request failed (${r.status})`); return data; }
     function setView(view) { state.view = view; document.querySelectorAll('.nav button').forEach(b => b.classList.toggle('active', b.dataset.view === view)); Object.keys(pageMeta).forEach(k => $(k + 'View').classList.toggle('hidden', k !== view)); $('pageTitle').textContent = pageMeta[view][0]; $('pageSub').textContent = pageMeta[view][1]; clearError(); loadCurrent(); }
     function fillRows(tbody, rows, columns, emptyText) { tbody.replaceChildren(); if (!rows.length) { const r = el('tr'); const c = el('td', emptyText, 'empty'); c.colSpan = columns; r.appendChild(c); tbody.appendChild(r); return; } rows.forEach(item => { const r = el('tr'); tbody.appendChild(r); }); }
     function drawRecent(rows) { const body = $('recentUsers'); body.replaceChildren(); if (!rows.length) { const r = el('tr'); const c = el('td', 'No users yet.', 'empty'); c.colSpan = 6; r.appendChild(c); body.appendChild(r); return; } for (const u of rows) { const r = el('tr'); td(r, u.name); td(r, u.email); const c = td(r, ''); c.appendChild(pill(u.email_verified ? 'Verified' : 'Unverified', u.email_verified ? 'good' : 'warn')); td(r, u.plan); td(r, fmtNum(u.credits)); td(r, fmtDate(u.created_at)); body.appendChild(r); } }
@@ -1026,7 +1094,7 @@
 
     async function post(path, body) {
       const r = await fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify(body || {}) });
-      if (r.status === 401) { location.href = '/app'; throw new Error('Please sign in again.'); }
+      if (r.status === 401) { showGate(); throw new Error('Please sign in again.'); }
       const data = await r.json().catch(() => ({}));
       if (!r.ok) throw new Error(typeof data.detail === 'string' ? data.detail : (data.detail?.message || `Request failed (${r.status})`));
       return data;
@@ -1206,7 +1274,35 @@
     document.querySelectorAll('.nav button').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
     document.querySelectorAll('[data-goto]').forEach(b => b.addEventListener('click', () => setView(b.dataset.goto)));
     $('refreshBtn').addEventListener('click', loadCurrent);
-    $('logoutBtn').addEventListener('click', () => location.href = '/app');
+    function showGate(msg) {
+      $('gate').classList.remove('hidden');
+      $('gateMsg').textContent = msg || 'Sign in with your admin account.';
+      $('gateErr').textContent = '';
+      clearError();
+    }
+    function enterAdmin() {
+      $('gate').classList.add('hidden');
+      $('gatePass').value = '';
+      loadCurrent();
+      refreshSupportBadge();
+    }
+    $('gateForm').addEventListener('submit', async ev => {
+      ev.preventDefault();
+      const btn = $('gateBtn'); btn.disabled = true; $('gateErr').textContent = '';
+      try {
+        const r = await fetch('/auth/login', { method: 'POST', credentials: 'same-origin', headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' }, body: JSON.stringify({ email: $('gateEmail').value.trim(), password: $('gatePass').value }) });
+        const d = await r.json().catch(() => ({}));
+        if (!r.ok) throw new Error(typeof d.detail === 'string' ? d.detail : (d.detail?.message || 'Could not sign in.'));
+        enterAdmin();
+      } catch (e) { $('gateErr').textContent = e.message; }
+      btn.disabled = false;
+    });
+    $('logoutBtn').addEventListener('click', async () => {
+      try { await fetch('/auth/logout', { method: 'POST', credentials: 'same-origin' }); } catch (e) { /* ignore */ }
+      sup.selected = null; sup.shown = null; setSupportBadge(0);
+      showGate('You are signed out.');
+    });
+    $('appBtn').addEventListener('click', () => location.href = '/app');
     let searchTimer; $('userSearch').addEventListener('input', e => { clearTimeout(searchTimer); state.userQuery = e.target.value; searchTimer = setTimeout(() => { if (state.view === 'users') loadUsers().catch(err => showError(err.message)); }, 250); });
     $('supportTabs').addEventListener('click', e => {
       const tab = e.target.closest('.tab');
@@ -1217,7 +1313,7 @@
       loadSupport().catch(err => showError(err.message));
     });
     setInterval(() => {
-      if (document.hidden) return;
+      if (document.hidden || !$('gate').classList.contains('hidden')) return;
       if (state.view === 'support') {
         loadSupport().catch(() => {});
         if (sup.selected && sup.shown === sup.selected) openSupportThread(sup.selected, true);

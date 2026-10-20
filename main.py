@@ -1818,19 +1818,13 @@ def _admin_row_dict(row):
 
 @app.get("/admin", response_class=HTMLResponse)
 def admin_dashboard(request: Request):
-    try:
-        require_admin(request)
-    except HTTPException as exc:
-        if exc.status_code == 401:
-            return RedirectResponse(url="/app", status_code=303)
-        if exc.status_code == 403:
-            raise
-        raise
+    # The page itself holds no data. Every /admin/api/* call still
+    # requires an admin session, and the page shows its own sign-in
+    # screen when the session is missing or not an admin.
     admin_file = STATIC_DIR / "admin.html"
     if not admin_file.is_file():
         raise HTTPException(status_code=404, detail="Admin dashboard file is missing from the static directory.")
     return FileResponse(admin_file, media_type="text/html")
-
 
 @app.get("/admin/api/overview")
 def admin_overview(request: Request):
