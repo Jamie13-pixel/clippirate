@@ -124,6 +124,7 @@
     <div class="nav-links">
       <a class="hide-m" href="#samples">Examples</a>
       <a class="hide-m" href="#templates">Templates</a>
+      <a class="hide-m" href="#pricing">Pricing</a>
       <a class="hide-m" href="#FAQs">FAQs</a>
       <a class="btn small" href="/app" data-cta>Start free</a>
     </div>
@@ -182,6 +183,18 @@
   </div>
 </section>
 
+<section id="pricing">
+  <div class="wrap">
+    <div class="head">
+      <h2>Simple pricing</h2>
+      <p class="sub">Start free. Upgrade when you need more videos. Cancel any time by not renewing.</p>
+      <div id="curWrap" style="display:none;margin-top:14px"><select id="curSelect" aria-label="Currency" style="background:var(--panel);color:inherit;border:1px solid var(--border);border-radius:10px;padding:8px 12px;font:inherit"></select></div>
+    </div>
+    <div class="plans" id="planGrid"></div>
+    <p class="fine" style="text-align:center;margin-top:16px">Credits: 2 for a 30-second video, 4 for 45 seconds, 6 for 60 seconds. Paid plans last 30 days.</p>
+  </div>
+</section>
+
 <section id="FAQs">
   <div class="wrap">
     <div class="head"><h2>Frequently Asked Questions</h2></div>
@@ -190,7 +203,8 @@
       <details><summary>What can I do on the free plan?</summary><p>You get 6 credits to try it, which covers about three 30-second videos, up to 2 videos a day.</p></details>
       <details><summary>Which formats do you support?</summary><p>Vertical 9:16 for TikTok, Reels and Shorts, plus 16:9, 1:1 and 4:3.</p></details>
       <details><summary>Where does the footage come from?</summary><p>Stock footage is matched to each line of the script automatically.</p></details>
-      <details><summary>Can I upgrade or change plans later?</summary><p>Yes. You can upgrade from Settings inside the app at any time.</p></details>
+      <details><summary>How are credits used?</summary><p>A 30-second video costs 2 credits, a 45-second video 4 and a 60-second video 6. Free accounts get a small daily refill.</p></details>
+      <details><summary>Can I upgrade or change plans later?</summary><p>Yes. Yes. You can upgrade or renew from Settings, then Billing, inside the app at any time.</p></details>
     </div>
   </div>
 </section>
@@ -218,6 +232,78 @@
     { file: "sample-2.mp4", title: "Did You Know?",  topic: "Ancient Egypt" },
     { file: "sample-3.mp4", title: "Amazing Places", topic: "Amazing facts about Kenya" }
   ];
+
+
+  // Pricing: live prices come from /plans. The list below is only a
+  // fallback (USD) if that request fails.
+  var PLAN_INFO = {
+    free:    { daily: 2,  dialogue: false },
+    starter: { daily: 10, dialogue: true },
+    pro:     { daily: 20, dialogue: true, best: true },
+    mega:    { daily: 40, dialogue: true }
+  };
+  var PLAN_FALLBACK = [
+    { id: "free", name: "Free", credits: 6, price: 0, currency_symbol: "$" },
+    { id: "starter", name: "Starter", credits: 150, price: 5, currency_symbol: "$" },
+    { id: "pro", name: "Pro", credits: 300, price: 10, currency_symbol: "$" },
+    { id: "mega", name: "Mega", credits: 600, price: 20, currency_symbol: "$" }
+  ];
+
+  function fmtPrice(p) {
+    var n = Number(p.price || 0);
+    if (!n) return "Free";
+    var txt = n % 1 === 0 ? String(n) : n.toFixed(2);
+    var sym = p.currency_symbol || ""; return sym + (sym.length > 1 ? " " : "") + (n >= 1000 ? Number(txt).toLocaleString() : txt);
+  }
+
+  function renderPlans(plans) {
+    var grid = document.getElementById("planGrid");
+    grid.replaceChildren();
+    plans.forEach(function (p) {
+      var info = PLAN_INFO[p.id] || { daily: 0, dialogue: false };
+      var paid = Number(p.price) > 0;
+      var card = document.createElement("div");
+      card.className = "plan" + (info.best ? " best" : "");
+
+      var h = document.createElement("h3"); h.textContent = p.name + (info.best ? " · Most popular" : "");
+      var price = document.createElement("div"); price.className = "price";
+      price.textContent = fmtPrice(p);
+      if (paid) { var sm = document.createElement("small"); sm.textContent = " / month"; price.appendChild(sm); }
+
+      var ul = document.createElement("ul");
+      var items = [
+        p.credits + " credits" + (paid ? " per month" : " to try"),
+        "About " + Math.floor(p.credits / 2) + " videos of 30 seconds",
+        "Up to " + info.daily + " videos a day",
+        "Script, footage, voice-over and captions",
+        info.dialogue ? "Two-voice dialogue videos" : "Solo narration"
+      ];
+      items.forEach(function (t) { var li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
+
+      var a = document.createElement("a");
+      a.className = "btn" + (info.best ? "" : " ghost");
+      a.href = "/app"; a.textContent = paid ? "Get " + p.name : "Start free";
+
+      card.append(h, price, ul, a);
+      grid.appendChild(card);
+    });
+  }
+
+  function loadPricing(code) {
+    var url = "/plans" + (code ? "?currency=" + encodeURIComponent(code) : "");
+    return fetch(url).then(function (r) { if (!r.ok) throw new Error(); return r.json(); }).then(function (d) {
+      renderPlans(d.plans || PLAN_FALLBACK);
+      var codes = d.enabled_currencies || [];
+      var wrap = document.getElementById("curWrap"), sel = document.getElementById("curSelect");
+      if (codes.length > 1 && !sel.options.length) {
+        codes.forEach(function (c) { var o = document.createElement("option"); o.value = c; o.textContent = c; sel.appendChild(o); });
+        sel.addEventListener("change", function () { loadPricing(sel.value).catch(function () {}); });
+        wrap.style.display = "block";
+      }
+      if (sel.options.length) sel.value = d.currency;
+    }).catch(function () { renderPlans(PLAN_FALLBACK); });
+  }
+  loadPricing();
 
   (function () {
     var grid = document.getElementById("sampleGrid");
